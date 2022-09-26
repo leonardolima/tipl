@@ -123,17 +123,11 @@ text \<open> (a) \<close>
 type_synonym ('f, 'v) equation = "('f, 'v) term \<times> ('f, 'v) term"
 type_synonym ('f, 'v) eq_system = "('f, 'v) equation list"
 
-(*TODO: Potentially fix names to proper overloading*)
-definition fv_eq :: "('f, 'v) equation \<Rightarrow> 'v set" where
-  "fv_eq eq = (fv (fst eq)) \<union> (fv (snd eq))"
+fun fv
 
-definition fv_eq_sys :: "('f, 'v) eq_system \<Rightarrow> 'v set" where
-  "fv_eq_sys eq_sys = \<Union>(set (map fv_eq eq_sys))"
 
-definition sapply_eq :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> ('f, 'v) equation" 
-  (infixr "\<cdot>" 67) where
-    "sapply_eq \<sigma> eq = (sapply \<sigma> (fst eq), sapply \<sigma> (snd eq))"
 
-definition sapply_eq_sys :: "('f, 'v) subst \<Rightarrow> ('f, 'v) eq_system \<Rightarrow> ('f, 'v) eq_system" 
-  (infixr "\<cdot>" 67) where
-    "sapply_eq_sys \<sigma> eq_sys = map (sapply_eq \<sigma>) eq_sys"
+
+
+
+
