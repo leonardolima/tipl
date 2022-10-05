@@ -72,11 +72,6 @@ text \<open> (d) \<close>
 definition sdom :: "('f, 'v) subst \<Rightarrow> 'v set" where
   "sdom \<sigma> = { x . (\<sigma> x) \<noteq> (Var x)}"
 
-(*
-definition sran :: "('f, 'v) subst \<Rightarrow> ('f, 'v) term set" where
- "sran \<sigma> = \<sigma> ` sdom \<sigma>"
-*)
-
 definition svran :: "('f, 'v) subst \<Rightarrow> 'v set" where
   "svran \<sigma> = \<Union>(fv ` (\<sigma> ` sdom \<sigma>))"
 
@@ -101,8 +96,9 @@ lemma svran_single_non_trivial[simp]:
 lemma svapply_svdom_svran:
   "x \<in> fv (\<sigma> \<cdot> t) \<Longrightarrow> x \<in> (fv t - sdom \<sigma>) \<union> svran \<sigma>"
   apply(induction t)
-   apply(simp_all add: svran_def sdom_def)
+   apply(simp add: svran_def sdom_def)
    apply(metis fv.simps(1) singletonD)
+  apply(simp add: svran_def sdom_def)
   apply(blast)
   done
 
@@ -121,19 +117,174 @@ section \<open> Assignment 2 \<close>
 text \<open> (a) \<close>
 
 type_synonym ('f, 'v) equation = "('f, 'v) term \<times> ('f, 'v) term"
-type_synonym ('f, 'v) eq_system = "('f, 'v) equation list"
+type_synonym ('f, 'v) equations = "('f, 'v) equation list"
 
-(*TODO: Potentially fix names to proper overloading*)
 definition fv_eq :: "('f, 'v) equation \<Rightarrow> 'v set" where
   "fv_eq eq = (fv (fst eq)) \<union> (fv (snd eq))"
 
-definition fv_eq_sys :: "('f, 'v) eq_system \<Rightarrow> 'v set" where
-  "fv_eq_sys eq_sys = \<Union>(set (map fv_eq eq_sys))"
+fun fv_eqs :: "('f, 'v) equations \<Rightarrow> 'v set" where
+  "fv_eqs [] = {}"
+| "fv_eqs (eq#s) = (fv_eq eq) \<union> (fv_eqs s)"
 
 definition sapply_eq :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> ('f, 'v) equation" 
-  (infixr "\<cdot>" 67) where
+  (infixr "\<cdot>e" 67) where
     "sapply_eq \<sigma> eq = (sapply \<sigma> (fst eq), sapply \<sigma> (snd eq))"
 
-definition sapply_eq_sys :: "('f, 'v) subst \<Rightarrow> ('f, 'v) eq_system \<Rightarrow> ('f, 'v) eq_system" 
-  (infixr "\<cdot>" 67) where
-    "sapply_eq_sys \<sigma> eq_sys = map (sapply_eq \<sigma>) eq_sys"
+fun sapply_eqs :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarrow> ('f, 'v) equations" 
+  (infixr "\<cdot>s" 67) where
+    "sapply_eqs \<sigma> [] = []"
+|   "sapply_eqs \<sigma> (eq#s) = (sapply_eq \<sigma> eq) # (sapply_eqs \<sigma> s)"
+
+lemma fv_sapply_eq: "fv_eq (\<sigma> \<cdot>e e) = (\<Union> x \<in> fv_eq e. fv (\<sigma> x))"
+  apply(simp add: fv_eq_def sapply_eq_def fv_sapply)
+  done
+
+lemma fv_sapply_eqs: "fv_eqs (\<sigma> \<cdot>s s) = (\<Union> x \<in> fv_eqs s. fv (\<sigma> x))"
+  apply(induction rule: sapply_eqs.induct)
+   apply(simp)
+  apply(simp add: fv_sapply_eq)
+  done
+
+lemma sapply_scomp_distrib_eq: "(\<sigma> \<circ>s \<tau>) \<cdot>e eq = \<sigma> \<cdot>e (\<tau> \<cdot>e eq)"
+  apply(simp add: sapply_eq_def sapply_scomp_distrib)
+  done
+
+lemma sapply_scomp_distrib_eqs: "(\<sigma> \<circ>s \<tau>) \<cdot>s eqs = \<sigma> \<cdot>s (\<tau> \<cdot>s eqs)"
+  apply(induction eqs)
+   apply(simp)
+  apply(simp add: sapply_scomp_distrib_eq)
+  done
+
+text \<open> (b) \<close>
+
+definition unifies_eq :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> bool" where
+  "(unifies_eq \<sigma> eq) \<longleftrightarrow> (\<sigma> \<cdot> (fst eq) = \<sigma> \<cdot> (snd eq))"
+
+fun unifies :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
+  "(unifies \<sigma> []) \<longleftrightarrow> True"
+| "(unifies \<sigma> (eq#s)) \<longleftrightarrow> ((unifies_eq \<sigma> eq) \<and> unifies \<sigma> s)"
+
+definition is_mgu :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
+  "(is_mgu \<sigma> eqs) \<longleftrightarrow> ((unifies \<sigma> eqs) \<and> (\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
+
+text \<open> (c) \<close>
+
+lemma unifies_sapply_eq: "unifies_eq \<sigma> (\<tau> \<cdot>e eq) \<longleftrightarrow> unifies_eq (\<sigma> \<circ>s \<tau>) eq"
+  apply(simp add: sapply_eq_def unifies_eq_def sapply_scomp_distrib)
+  done
+
+lemma unifies_sapply: "unifies \<sigma> (\<tau> \<cdot>s eqs) \<longleftrightarrow> unifies (\<sigma> \<circ>s \<tau>) eqs"
+  apply(induction eqs)
+   apply(simp)
+  apply(simp add: unifies_sapply_eq)
+  done
+
+section \<open> Assignment 3 \<close>
+
+text \<open> (a) \<close>
+
+(*
+definition zipOpt :: "'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> 'b) list option" where
+  "zipOpt l0 l1 = (if (length l0 = length l1) then Some (zip l0 l1) else None)"
+*)
+
+(*inline monad notation?*)
+fun scomp_opt :: "('f, 'v) subst option \<Rightarrow> ('f, 'v) subst \<Rightarrow> ('f, 'v) subst option"
+  where
+    "(scomp_opt None \<tau>) = None"
+  | "(scomp_opt (Some \<sigma>) \<tau>) = Some (\<sigma> \<circ>s \<tau>)"
+
+(*can we assume wellformed function applications?*)
+function (sequential) unify :: "('f, 'v) equations \<Rightarrow> ('f, 'v) subst option" where
+  "unify [] = Some Var"
+| "unify (eq#s) = (case eq of 
+    (Var x, t) \<Rightarrow> if x \<in> (fv t) then 
+        scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t))
+      else 
+        if t = (Var x) then 
+          unify s 
+        else 
+          None
+  | (t, Var x) \<Rightarrow> unify ((Var x, t)#s)
+  | (Fun f0 l0, Fun f l1) \<Rightarrow> 
+      if (length l0 = length l1) then 
+        unify ((zip l0 l1) @ s) 
+      else None
+  )"
+  using fv_eqs.cases apply blast
+  by simp_all
+termination
+  sorry
+
+text \<open> (b) \<close>
+
+lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<sigma> eqs"
+  apply(induction eqs rule: unify.induct)
+   apply(simp)
+  sorry
+
+lemma unify_soundness_ii: "unify eqs = Some \<sigma> \<Longrightarrow> 
+  ((\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
+  apply(induction eqs rule: unify.induct)
+   apply(simp)
+  sorry
+
+theorem unify_soundness: "unify eqs = Some \<sigma> \<Longrightarrow> is_mgu \<sigma> eqs"
+  by(simp add: is_mgu_def unify_soundness_i unify_soundness_ii)
+
+text \<open> (c) \<close>
+
+theorem unify_completeness: "\<forall> eqs . (\<exists> \<sigma> . unifies \<sigma> eqs) \<longrightarrow> (unify eqs) = Some \<tau>"
+  sorry
+
+text \<open> (d) \<close>
+
+lemma unify_fv_sapply: "unify eqs = Some \<sigma> \<Longrightarrow> fv_eqs (\<sigma> \<cdot>s eqs) \<subseteq> fv_eqs eqs"
+  sorry
+
+lemma unify_sdom_fv: "unify eqs = Some \<sigma> \<Longrightarrow> sdom \<sigma> \<subseteq> fv_eqs eqs"
+  sorry
+
+lemma unify_svran_fv: "unify eqs = Some \<sigma> \<Longrightarrow> svran \<sigma> \<subseteq> fv_eqs eqs"
+  sorry
+
+lemma unify_sdom_svran: "unify eqs = Some \<sigma> \<Longrightarrow> sdom \<sigma> \<inter> svran \<sigma> = {}"
+  sorry
+
+section \<open> Assignment 4 \<close>
+
+text \<open> (a) \<close>
+
+fun wf_term :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) term \<Rightarrow> bool" where
+  "wf_term fa (Var _) = True"
+| "wf_term fa (Fun f lst) = ((length lst) = (fa f))"
+
+fun wf_subst :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) subst \<Rightarrow> bool" where
+  "wf_subst arity \<sigma> = (\<forall> x. wf_term arity (\<sigma> x))"
+
+fun wf_eq :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) equation \<Rightarrow> bool" where
+  "wf_eq arity (t0, t1) = ((wf_term arity t0) \<and> (wf_term arity t1))"
+
+fun wf_eqs :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
+  "wf_eqs arity eqs = (\<forall> eq \<in> (set eqs). wf_eq arity eq)"
+
+text \<open> (b) \<close>
+
+lemma wf_term_sapply:
+  "\<lbrakk> wf_term arity t; wf_subst arity \<sigma> \<rbrakk> \<Longrightarrow> wf_term arity (\<sigma> \<cdot> t)"
+  apply(induction t)
+   apply(simp_all)
+  done
+
+lemma wf_subst_scomp:
+  "\<lbrakk> wf_subst arity \<sigma>; wf_subst arity \<tau> \<rbrakk> \<Longrightarrow> wf_subst arity (\<sigma> \<circ>s \<tau>)"
+  apply(simp add: scomp_def wf_term_sapply)
+  done
+
+lemma wf_subst_unify:
+  "\<lbrakk> unify eqs = Some \<sigma>; wf_eqs arity eqs \<rbrakk> \<Longrightarrow> wf_subst arity \<sigma>"
+  sorry
+  
+  
+  
+  
