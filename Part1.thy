@@ -192,42 +192,98 @@ definition zipOpt :: "'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> '
 fun scomp_opt :: "('f, 'v) subst option \<Rightarrow> ('f, 'v) subst \<Rightarrow> ('f, 'v) subst option"
   where
     "(scomp_opt None \<tau>) = None"
-  | "(scomp_opt (Some \<sigma>) \<tau>) = Some (\<sigma> \<circ>s \<tau>)"
+  | "(scomp_opt (Some \<sigma>) \<tau>) = Some (\<sigma> \<circ>s \<tau>)"  
 
 (*can we assume wellformed function applications?*)
 function (sequential) unify :: "('f, 'v) equations \<Rightarrow> ('f, 'v) subst option" where
   "unify [] = Some Var"
-| "unify (eq#s) = (case eq of 
-    (Var x, t) \<Rightarrow> if x \<in> (fv t) then 
+| "unify ((Var x, t)#s) = (if x \<notin> (fv t) then 
         scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t))
       else 
         if t = (Var x) then 
           unify s 
         else 
-          None
-  | (t, Var x) \<Rightarrow> unify ((Var x, t)#s)
-  | (Fun f0 l0, Fun f l1) \<Rightarrow> 
-      if (length l0 = length l1) then 
-        unify ((zip l0 l1) @ s) 
-      else None
-  )"
-  using fv_eqs.cases apply blast
-  by simp_all
+          None)"
+| "unify ((t, Var x)#s) = unify ((Var x, t)#s)"
+| "unify ((Fun f0 l0, Fun f1 l1)#s) = (
+  if (f0 = f1) \<and> (length l0 = length l1) then 
+    unify ((zip l0 l1) @ s) 
+  else None)"
+            apply pat_completeness
+            by(simp_all)
 termination
   sorry
 
 text \<open> (b) \<close>
 
-lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<sigma> eqs"
-  apply(induction eqs rule: unify.induct)
-   apply(simp)
+lemma unifies_app: "unifies \<sigma> (eqs0 @ eqs) \<Longrightarrow> unifies \<sigma> eqs0 \<and> unifies \<sigma> eqs"
   sorry
+
+lemma temp: 
+  assumes assms: "unifies \<sigma> (zip l0 l1 @ s)" and 
+      "f0 = f1 \<and> length l0 = length l1" and 
+      "unify (zip l0 l1 @ s) = Some \<sigma>"
+  shows "map ((\<cdot>) \<sigma>) l0 = map ((\<cdot>) \<sigma>) l1 \<and> unifies \<sigma> s"  
+proof -
+  from assms have "unifies \<sigma> s" 
+    apply(simp)
+    sorry
+qed
+
+lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<sigma> eqs"
+  proof(induction eqs rule: unify.induct)
+    case 1
+    then show ?case by simp
+  next
+    case (2 x t s)
+    then show ?case sorry
+  next
+    case (3 v va x s)
+    then show ?case proof -
+      from 3(2) have swap: 
+        "unify ((Fun v va, Var x) # s) = unify ((Var x, Fun v va) # s)" by simp
+      from 3 swap have
+        "unifies \<sigma> ((Var x, Fun v va) # s)" by simp
+      then show ?thesis by (simp add: unifies_eq_def)
+    qed
+  next
+    case (4 f0 l0 f1 l1 s)
+    then show ?case proof-
+      from 4(2) have assms:
+        "(f0 = f1 \<and> length l0 = length l1) \<and> (unify (zip l0 l1 @ s) = Some \<sigma>)"
+        apply(simp)
+        by (metis option.distinct(1))
+      from 4(1) assms have
+        "unifies \<sigma> (zip l0 l1 @ s)" by simp
+      from assms have eq:
+        "unify ((Fun f0 l0, Fun f1 l1) # s) = unify (zip l0 l1 @ s)"
+        by simp
+      from 4(1) assms show ?thesis
+        apply(simp add: unifies_eq_def)
+    qed
+  qed
 
 lemma unify_soundness_ii: "unify eqs = Some \<sigma> \<Longrightarrow> 
   ((\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
-  apply(induction eqs rule: unify.induct)
-   apply(simp)
-  sorry
+proof(induction eqs rule: unify.induct)
+  case 1
+  then show ?case by simp
+next
+  case (2 x t s)
+  then show ?case sorry
+next
+  case (3 v va x s)
+  then show ?case proof -
+      from 3(2) have swap: 
+        "unify ((Fun v va, Var x) # s) = unify ((Var x, Fun v va) # s)" by simp
+      from 3 swap have
+        "\<forall>\<tau>. unifies \<tau> ((Var x, Fun v va) # s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)" by simp
+      then show ?thesis by (simp add: unifies_eq_def)
+    qed
+next
+  case (4 f0 l0 f1 l1 s)
+  then show ?case sorry
+qed
 
 theorem unify_soundness: "unify eqs = Some \<sigma> \<Longrightarrow> is_mgu \<sigma> eqs"
   by(simp add: is_mgu_def unify_soundness_i unify_soundness_ii)
@@ -283,7 +339,19 @@ lemma wf_subst_scomp:
 
 lemma wf_subst_unify:
   "\<lbrakk> unify eqs = Some \<sigma>; wf_eqs arity eqs \<rbrakk> \<Longrightarrow> wf_subst arity \<sigma>"
-  sorry
+proof(induction eqs rule: unify.induct)
+  case 1
+  then show ?case by simp
+next
+  case (2 x t s)
+  then show ?case sorry
+next
+  case (3 v va x s)
+  then show ?case sorry
+next
+  case (4 f0 l0 f1 l1 s)
+  then show ?case sorry
+qed
   
   
   
