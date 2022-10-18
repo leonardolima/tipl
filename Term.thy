@@ -2,15 +2,10 @@ theory Term
   imports Main Unification
 begin
 
-(***********************************)
-(*                                 *)
-(*                                 *)
-(*          Assignment 5           *)
-(*                                 *)
-(*                                 *)
-(***********************************)
+section \<open>Assignment 5\<close>
 
-(* (a) *)
+subsection \<open>(a)\<close>
+
 datatype msg =
   is_Variable : Variable string
 | Constant string
@@ -20,7 +15,8 @@ datatype msg =
 | PubKeyEncrypt msg msg 
 | Sig msg msg
 
-(* (b) *)
+subsection \<open>(b)\<close>
+
 datatype symbol =
   Constant_Symbol string
 | Hash_Symbol 
@@ -37,7 +33,8 @@ fun arity :: "symbol \<Rightarrow> nat" where
 | "arity PubKeyEncrypt_Symbol = 2"
 | "arity Sig_Symbol = 2"
 
-(* (c) *)
+subsection \<open>(c)\<close>
+
 fun embed :: "msg \<Rightarrow> (symbol, string) term" where
   "embed (Variable x) = Var x"
 | "embed (Constant c) = Fun (Constant_Symbol c) []"
@@ -55,6 +52,7 @@ fun msg_of_term :: "(symbol, string) term \<Rightarrow> msg" where
 | "msg_of_term (Fun SymEncrypt_Symbol [k, m]) = SymEncrypt (msg_of_term k) (msg_of_term m)"
 | "msg_of_term (Fun PubKeyEncrypt_Symbol [k, m]) = PubKeyEncrypt (msg_of_term k) (msg_of_term m)"
 | "msg_of_term (Fun Sig_Symbol [k, m]) = Sig (msg_of_term k) (msg_of_term m)"
+| "msg_of_term _ = undefined"
 
 lemma wf_term_embed [simp]: "wf_term arity (embed msg)"
   apply(induction msg)
@@ -80,7 +78,7 @@ lemma msg_of_term_inject:
 \<Longrightarrow> msg_of_term t1 = msg_of_term t2 \<longleftrightarrow> t1 = t2"
   by (metis embed_msg_of_term)
 
-(* (d) *)
+subsection \<open>(d)\<close>
 type_synonym msg_equation = "msg \<times> msg"
 type_synonym msg_equations = "msg_equation list"
 type_synonym symbol_subst = "string \<Rightarrow> (symbol, string) term"
@@ -89,29 +87,125 @@ type_synonym msg_subst = "string \<Rightarrow> msg"
 definition msg_fv :: "msg \<Rightarrow> string set" where
   "msg_fv m = fv (embed m)"
 
-definition msg_sapply :: "msg_subst \<Rightarrow> msg \<Rightarrow> msg" where
+definition msg_sapply :: "msg_subst \<Rightarrow> msg \<Rightarrow> msg" (infixr "\<cdot>m" 67) where
   "msg_sapply \<sigma> m = msg_of_term ((embed \<circ> \<sigma>) \<cdot> (embed m))"
 
-definition msg_scomp :: "msg_subst \<Rightarrow> msg_subst \<Rightarrow> msg_subst" where
-  "msg_scomp \<sigma> \<tau> = msg_of_term \<circ> ((embed \<circ> \<sigma>) \<circ>s (embed \<circ> \<tau>))"
+definition msg_scomp :: "msg_subst \<Rightarrow> msg_subst \<Rightarrow> msg_subst" (infixl "\<circ>m" 55)
+  where "msg_scomp \<sigma> \<tau> = msg_of_term \<circ> ((embed \<circ> \<sigma>) \<circ>s (embed \<circ> \<tau>))"
+
+lemma fv_sapply: "msg_fv (\<sigma> \<cdot>m t) = fv ((embed \<circ> \<sigma>) \<cdot> (embed t))"
+  by (simp add: fv_sapply msg_fv_def msg_sapply_def wf_term_sapply)
+
+definition msg_sdom :: "msg_subst \<Rightarrow> string set" where
+  "msg_sdom \<sigma> = sdom (embed \<circ> \<sigma>)"
+
+definition msg_svran :: "msg_subst \<Rightarrow> string set" where
+  "msg_svran \<sigma> = svran (embed \<circ> \<sigma>)"
+
+lemma msg_sdom_var [simp]: "msg_sdom Variable = {}"
+  by(simp add: msg_sdom_def sdom_def)
+
+lemma msg_svran_var [simp]: "msg_svran Variable = {}"
+  by(simp add: msg_svran_def svran_def sdom_def)
+
+lemma msg_var_ineq: "t \<noteq> Variable x \<Longrightarrow> embed t \<noteq> Var x"
+  by(metis msg_of_term.simps(1) msg_of_term_embed)
+
+lemma msg_sdom_single_non_trivial [simp]: "t \<noteq> Variable x \<Longrightarrow> msg_sdom (Variable(x:=t)) = {x}"
+  by(simp add: msg_sdom_def sdom_def msg_var_ineq)
+
+lemma msg_svran_single_non_trivial [simp]: "t \<noteq> Variable x \<Longrightarrow> msg_svran (Variable(x:=t)) = msg_fv t" 
+  by(auto simp add: msg_svran_def svran_def sdom_def msg_var_ineq msg_fv_def)
+
+lemma msg_sdomI: "\<sigma> x \<noteq> Variable x \<Longrightarrow> x \<in> msg_sdom \<sigma>"
+  by(simp add: msg_sdom_def sdom_def msg_var_ineq)
+
+lemma msg_fv_sapply_sdom_svran: "x \<in> msg_fv (\<sigma> \<cdot>m t) \<Longrightarrow> x \<in> (msg_fv t - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+  unfolding msg_sdom_def msg_svran_def
+  using fv_sapply_sdom_svran msg_fv_def msg_sapply_def fv_sapply
+  apply simp
+  apply fastforce
+  done
+
+lemma msg_sdom_scomp: "msg_sdom (\<sigma> \<circ>m \<tau>) \<subseteq> msg_sdom \<sigma> \<union> msg_sdom \<tau>"
+  unfolding msg_sdom_def
+  using sdom_scomp
+  by (auto simp add: msg_scomp_def sdom_def)
+
+(* TODO: Rewrite this proof *)
+lemma msg_svran_scomp: "msg_svran (\<sigma> \<circ>m \<tau>) \<subseteq> msg_svran \<sigma> \<union> msg_svran \<tau>"
+  unfolding msg_svran_def
+  using svran_scomp
+  apply (auto simp add: msg_scomp_def svran_def sdom_def)
+  by (smt (z3) Diff_iff UN_iff UnE comp_def embed_msg_of_term fv_sapply_sdom_svran mem_Collect_eq sapply.simps(1) sdom_def svran_def wf_subst_embed wf_term_embed wf_term_sapply)
+
+(* TODO: Rewrite this proof *)
+lemma msg_scomp_distrib: 
+  "(\<sigma> \<circ>m \<tau>) \<cdot>m t = \<sigma> \<cdot>m (\<tau> \<cdot>m t)"
+  using sapply_scomp_distrib 
+  unfolding msg_sapply_def msg_scomp_def 
+  by (smt (z3) comp_def embed_msg_of_term sapply_cong scomp.simps wf_subst_def wf_term_embed wf_term_sapply)
+
+lemma msg_scomp_assoc: 
+  "(\<sigma> \<circ>m \<tau>) \<circ>m t = \<sigma> \<circ>m (\<tau> \<circ>m t)"
+  using msg_scomp_distrib msg_sapply_def
+  unfolding msg_scomp_def
+  by auto
+
+lemma msg_var_sapply[simp]: "Variable \<cdot>m t = t"
+  sorry
+
+(* TODO: Rewrite this proof *)
+lemma msg_var_sig: "Variable \<cdot>m (\<sigma> \<cdot>m x) = \<sigma> \<cdot>m x"
+  using Var_scomp sapply_cong sapply_scomp_distrib embed.simps(1)
+  by (metis comp_def embed_msg_of_term msg_sapply_def wf_subst_embed wf_term_embed wf_term_sapply)
+
+lemma msg_var_scomp[simp]: "\<sigma> \<circ>m Variable = \<sigma>"
+  unfolding msg_scomp_def
+  by auto
 
 fun msg_unifies :: "msg_subst \<Rightarrow> msg_equation \<Rightarrow> bool" where
-  "msg_unifies \<sigma> (m1, m2) = unifies (embed \<circ> \<sigma>) (embed m1, embed m2)"
+  "msg_unifies \<sigma> pair = unifies (embed \<circ> \<sigma>) (embed (fst pair), embed (snd pair))"
+
+lemma msg_unifies_alt: "msg_unifies \<sigma> pair = (\<sigma> \<cdot>m fst(pair) = \<sigma> \<cdot>m snd(pair))"
+  by (simp add: wf_term_sapply msg_sapply_def msg_of_term_inject)
 
 definition msg_unifiess :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
-  "msg_unifiess \<sigma> eqs = (\<forall> eq \<in> set eqs. msg_unifies \<sigma> eq)"
+  "msg_unifiess \<sigma> pairs = unifiess (embed \<circ> \<sigma>) (map (\<lambda>pair. map_prod embed embed pair) pairs)"
+
+lemma msg_unifiess_alt: "msg_unifiess \<sigma> pairs = (\<forall>pair \<in> set pairs. msg_unifies \<sigma> pair)"
+  by (auto simp add: msg_unifiess_def unifiess_def)
 
 definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
-  "msg_unify msg_pairs = map_option ((\<circ>) msg_of_term) (unify (map (\<lambda>(m1, m2). map_prod embed embed (m1, m2)) msg_pairs))"
+  "msg_unify pairs = map_option ((\<circ>) msg_of_term) (unify (map (\<lambda>pair. map_prod embed embed pair) pairs))"
 
-(* (e) *)
+definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
+  "msg_is_mgu \<sigma> pairs = is_mgu (embed \<circ> \<sigma>) (map (\<lambda>pair. map_prod embed embed pair) pairs)"
+
+lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> msg_pairs = (msg_unifiess \<sigma> msg_pairs \<and> (\<forall>\<tau>. (msg_unifiess \<tau> msg_pairs \<longrightarrow> (\<exists>\<tau>'. (\<tau> = \<tau>' \<circ>m \<sigma>)))))"
+  apply(simp only: msg_is_mgu_def)
+  apply(simp only: is_mgu_def)
+  apply(simp only: unifiess_def)
+  apply(simp only: msg_unifiess_alt)
+  apply (rule iffI)
+   apply(intro iffI impI conjI; clarsimp)
+    apply fastforce
+  sorry
+  
+subsection \<open>(e)\<close>
+
 lemma msg_unify_unifiess:
   "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifiess \<sigma> MU"
   sorry
   
-(* (f) *)
+subsection \<open>(f)\<close>
+
 lemma msg_unify_mgu: 
-  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifiess \<tau> MU \<Longrightarrow> \<exists> s. \<tau> = msg_scomp s \<sigma>"
+  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifiess \<tau> MU \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
+  sorry
+
+lemma msg_unify_soundness:
+  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_is_mgu \<sigma> MU"
   sorry
 
 end
