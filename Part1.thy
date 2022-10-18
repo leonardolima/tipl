@@ -126,6 +126,10 @@ fun fv_eqs :: "('f, 'v) equations \<Rightarrow> 'v set" where
   "fv_eqs [] = {}"
 | "fv_eqs (eq#s) = (fv_eq eq) \<union> (fv_eqs s)"
 
+lemma fv_eqs_U: "fv_eqs eqs = \<Union>(fv_eq ` set eqs)"
+  apply(induction eqs)
+  by simp_all
+
 definition sapply_eq :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> ('f, 'v) equation" 
   (infixr "\<cdot>e" 67) where
     "sapply_eq \<sigma> eq = (sapply \<sigma> (fst eq), sapply \<sigma> (snd eq))"
@@ -183,18 +187,55 @@ section \<open> Assignment 3 \<close>
 
 text \<open> (a) \<close>
 
-(*
-definition zipOpt :: "'a list \<Rightarrow> 'b list \<Rightarrow> ('a \<times> 'b) list option" where
-  "zipOpt l0 l1 = (if (length l0 = length l1) then Some (zip l0 l1) else None)"
-*)
+(*Termination definitions and lemmas*)
+fun tsize :: "('f, 'v) term \<Rightarrow> nat" where
+  "tsize (Var x) = 0"
+| "tsize (Fun f l) = 1 + (fold (+) (map tsize l) 0)"
 
-(*inline monad notation?*)
+fun eqs_size_fst :: "('f, 'v) equations \<Rightarrow> nat" where
+  "eqs_size_fst [] = 0"
+| "eqs_size_fst ((t, _)#qs) = tsize t + eqs_size_fst qs"
+
+fun term_zip :: "('f, 'v) term list \<Rightarrow> ('f, 'v) term list \<Rightarrow> (('f, 'v) term \<times> ('f, 'v) term) list" where
+  "term_zip [] t1 = []"
+| "term_zip t0 [] = []"
+| "term_zip (h0#t0) (h1#t1) = (h0, h1) # (term_zip t0 t1)"
+
+lemma term_swap_X1 [simp]: 
+  "card (fv_eq (Var x, Fun v va) \<union> fv_eqs s) = card (fv_eq (Fun v va, Var x) \<union> fv_eqs s)"
+  by(simp add: fv_eq_def)
+
+lemma fv_term_zip: 
+ "length l0 = length l1 \<Longrightarrow> (\<Union>x\<in>set (term_zip l0 l1). fv (fst x) \<union> fv (snd x)) = (\<Union> (fv ` set l0) \<union> \<Union> (fv ` set l1))"
+  apply(induction l0 l1 rule: term_zip.induct)
+    apply(simp_all)
+  by blast
+
+lemma term_fun_X1 [simp]:
+  "length l0 = length l1 \<Longrightarrow> card (fv_eqs (term_zip l0 l1 @ s)) = card (fv_eq (Fun f0 l0, Fun f0 l1) \<union> fv_eqs s)"
+  apply(induction l0 l1 rule: term_zip.induct)
+  by(simp_all add: fv_eq_def fv_eqs_U fv_term_zip Un_assoc Un_left_commute)
+
+lemma term_fun_X2 [simp]:
+  "length l0 = length l1 \<Longrightarrow> eqs_size_fst (term_zip l0 l1 @ s) < Suc (fold (+) (map tsize l0) 0 + eqs_size_fst s)"
+  apply(induction l0 l1 rule: term_zip.induct)
+  by (simp_all add: fold_plus_sum_list_rev)
+
+lemma term_simp_X1 [simp]:
+  "t = Var x \<Longrightarrow> card (fv_eqs s) \<le> card (fv_eq (Var x, Var x) \<union> fv_eqs s)"
+  by(simp add: fv_eq_def card_insert_le)
+  
+lemma term_unify_X1 [simp]:
+  assumes fvt: "x \<notin> fv t"
+  shows "card (fv_eqs (Var(x := t) \<cdot>s s)) < card (fv_eq (Var x, t) \<union> fv_eqs s)"
+  sorry
+
+(*Unification algorithm*)
 fun scomp_opt :: "('f, 'v) subst option \<Rightarrow> ('f, 'v) subst \<Rightarrow> ('f, 'v) subst option"
   where
     "(scomp_opt None \<tau>) = None"
-  | "(scomp_opt (Some \<sigma>) \<tau>) = Some (\<sigma> \<circ>s \<tau>)"  
+  | "(scomp_opt (Some \<sigma>) \<tau>) = Some (\<sigma> \<circ>s \<tau>)" 
 
-(*can we assume wellformed function applications?*)
 function (sequential) unify :: "('f, 'v) equations \<Rightarrow> ('f, 'v) subst option" where
   "unify [] = Some Var"
 | "unify ((Var x, t)#s) = (if x \<notin> (fv t) then 
@@ -207,12 +248,17 @@ function (sequential) unify :: "('f, 'v) equations \<Rightarrow> ('f, 'v) subst 
 | "unify ((t, Var x)#s) = unify ((Var x, t)#s)"
 | "unify ((Fun f0 l0, Fun f1 l1)#s) = (
   if (f0 = f1) \<and> (length l0 = length l1) then 
-    unify ((zip l0 l1) @ s) 
+    unify ((term_zip l0 l1) @ s) 
   else None)"
             apply pat_completeness
             by(simp_all)
 termination
-  sorry
+  apply(relation "measures[
+    (\<lambda> eqs . card (fv_eqs eqs)),
+    (\<lambda> eqs . eqs_size_fst eqs),
+    (\<lambda> eqs . size eqs)
+  ]")
+  by(simp_all add: le_imp_less_or_eq)
 
 text \<open> (b) \<close>
 
@@ -225,10 +271,9 @@ lemma temp:
       "unify (zip l0 l1 @ s) = Some \<sigma>"
   shows "map ((\<cdot>) \<sigma>) l0 = map ((\<cdot>) \<sigma>) l1 \<and> unifies \<sigma> s"  
 proof -
-  from assms have "unifies \<sigma> s" 
-    apply(simp)
-    sorry
-qed
+  from assms have "unifies \<sigma> s" sorry
+    then show ?thesis sorry
+  qed
 
 lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<sigma> eqs"
   proof(induction eqs rule: unify.induct)
@@ -250,16 +295,16 @@ lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<
     case (4 f0 l0 f1 l1 s)
     then show ?case proof-
       from 4(2) have assms:
-        "(f0 = f1 \<and> length l0 = length l1) \<and> (unify (zip l0 l1 @ s) = Some \<sigma>)"
+        "(f0 = f1 \<and> length l0 = length l1) \<and> (unify (term_zip l0 l1 @ s) = Some \<sigma>)"
         apply(simp)
         by (metis option.distinct(1))
       from 4(1) assms have
-        "unifies \<sigma> (zip l0 l1 @ s)" by simp
+        "unifies \<sigma> (term_zip l0 l1 @ s)" by simp
       from assms have eq:
-        "unify ((Fun f0 l0, Fun f1 l1) # s) = unify (zip l0 l1 @ s)"
+        "unify ((Fun f0 l0, Fun f1 l1) # s) = unify (term_zip l0 l1 @ s)"
         by simp
       from 4(1) assms show ?thesis
-        apply(simp add: unifies_eq_def)
+        sorry
     qed
   qed
 
@@ -312,16 +357,16 @@ section \<open> Assignment 4 \<close>
 text \<open> (a) \<close>
 
 fun wf_term :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) term \<Rightarrow> bool" where
-  "wf_term fa (Var _) = True"
-| "wf_term fa (Fun f lst) = ((length lst) = (fa f))"
+  "wf_term arity (Var _) = True"
+| "wf_term arity (Fun f lst) = (((length lst) = (arity f)) \<and> (\<forall> t \<in> set lst. (wf_term arity t)))"
 
-fun wf_subst :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) subst \<Rightarrow> bool" where
+definition wf_subst :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) subst \<Rightarrow> bool" where
   "wf_subst arity \<sigma> = (\<forall> x. wf_term arity (\<sigma> x))"
 
 fun wf_eq :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) equation \<Rightarrow> bool" where
   "wf_eq arity (t0, t1) = ((wf_term arity t0) \<and> (wf_term arity t1))"
 
-fun wf_eqs :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
+definition wf_eqs :: "('f \<Rightarrow> nat) \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
   "wf_eqs arity eqs = (\<forall> eq \<in> (set eqs). wf_eq arity eq)"
 
 text \<open> (b) \<close>
@@ -329,28 +374,52 @@ text \<open> (b) \<close>
 lemma wf_term_sapply:
   "\<lbrakk> wf_term arity t; wf_subst arity \<sigma> \<rbrakk> \<Longrightarrow> wf_term arity (\<sigma> \<cdot> t)"
   apply(induction t)
-   apply(simp_all)
+   apply(simp_all add: wf_subst_def)
   done
 
 lemma wf_subst_scomp:
   "\<lbrakk> wf_subst arity \<sigma>; wf_subst arity \<tau> \<rbrakk> \<Longrightarrow> wf_subst arity (\<sigma> \<circ>s \<tau>)"
-  apply(simp add: scomp_def wf_term_sapply)
+  apply(simp add: wf_subst_def scomp_def wf_term_sapply)
   done
+
+lemma wf_zip: "\<lbrakk>length l0 = length l1; 
+    \<forall>t\<in>set l0. wf_term arity t; 
+    \<forall>t\<in>set l1. wf_term arity t;
+    wf_eqs arity s\<rbrakk> \<Longrightarrow> wf_eqs arity ((term_zip l0 l1)@s)"
+  apply(induction rule: term_zip.induct)
+  by(simp_all add: wf_eqs_def)
 
 lemma wf_subst_unify:
   "\<lbrakk> unify eqs = Some \<sigma>; wf_eqs arity eqs \<rbrakk> \<Longrightarrow> wf_subst arity \<sigma>"
 proof(induction eqs rule: unify.induct)
   case 1
-  then show ?case by simp
+  then show ?case by(simp add: wf_subst_def)
 next
   case (2 x t s)
   then show ?case sorry
 next
   case (3 v va x s)
-  then show ?case sorry
+  then show ?case by(simp add: wf_eqs_def wf_subst_def)
 next
   case (4 f0 l0 f1 l1 s)
-  then show ?case sorry
+  then show ?case proof -
+    from 4(2) have s0:
+      "f0 = f1 \<and> length l0 = length l1"
+      by (simp; metis option.distinct(1))
+    from 4(2) have s1:
+      "unify (term_zip l0 l1 @ s) = Some \<sigma>"
+      by (simp; metis option.distinct(1))
+    from 4(3) have s2:
+      "(\<forall> t \<in> set l0 . wf_term arity t) \<and> (\<forall> t \<in> set l1 . wf_term arity t)" 
+      by(simp add: wf_eqs_def)
+    from 4(3) have s3:
+      "wf_eqs arity s" 
+      by(simp add: wf_eqs_def)
+    from s0 s2 s3 have s4:
+      "wf_eqs arity ((term_zip l0 l1)@s)"
+      by(simp add: wf_zip)
+    from 4(1) s0 s1 s4 show ?thesis by simp 
+  qed
 qed
   
   
