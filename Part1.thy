@@ -167,10 +167,20 @@ text \<open> (b) \<close>
 
 definition unifies_eq :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> bool" where
   "(unifies_eq \<sigma> eq) \<longleftrightarrow> (\<sigma> \<cdot> (fst eq) = \<sigma> \<cdot> (snd eq))"
+(*
+fun unifies_eq_fun :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equation \<Rightarrow> bool" where
+  "(unifies_eq_fun \<sigma> (t0, t1)) \<longleftrightarrow> (\<sigma> \<cdot> t0 = \<sigma> \<cdot> t1)"
 
+lemma unifies_eq_equiv: "unifies_eq = unifies_eq_fun"
+  by(simp add: fun_eq_iff unifies_eq_def)
+*)
 fun unifies :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
   "(unifies \<sigma> []) \<longleftrightarrow> True"
 | "(unifies \<sigma> (eq#s)) \<longleftrightarrow> ((unifies_eq \<sigma> eq) \<and> unifies \<sigma> s)"
+
+lemma unifies_forall: "unifies \<sigma> lst = (\<forall>eq \<in> set lst . unifies_eq \<sigma> eq)"
+  apply(induction lst)
+  by(simp_all)
 
 definition is_mgu :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarrow> bool" where
   "(is_mgu \<sigma> eqs) \<longleftrightarrow> ((unifies \<sigma> eqs) \<and> (\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
@@ -299,32 +309,91 @@ text \<open> (b) \<close>
 (*lemma swap: "unify ((Fun v va, Var x) # s) = Some \<sigma> \<Longrightarrow> unify ((Fun v va, Var x) # s) = unify ((Var x, Fun v va) # s)"
   by simp *)
 
+lemma fun_unifies: "\<lbrakk>length l0 = length l1; f0 = f1 \<rbrakk> \<Longrightarrow> unifies \<sigma> (term_zip l0 l1 @ s) = unifies \<sigma> ((Fun f0 l0, Fun f1 l1)#s)"
+  apply(induction rule: term_zip.induct)
+  by(simp_all add: unifies_eq_def)
+
+lemma unifies_app: "unifies \<sigma> (l0 @ l1) \<Longrightarrow> unifies \<sigma> l0 \<and> unifies \<sigma> l1"
+  by(simp add: unifies_forall)
+
+lemma scomp_opt_fst: "scomp_opt (unify eqs) \<tau> = Some \<rho> \<Longrightarrow> \<exists> \<sigma> . unify eqs = Some \<sigma>"
+  by(metis scomp_opt.elims)
+
+lemma subst_redundancy: "x \<notin> fv t \<Longrightarrow> \<sigma> \<circ>s Var(x := t) \<circ>s Var(x := t) = \<sigma> \<circ>s Var(x := t)"
+  by (simp only: fun_eq_iff; metis Part1.scomp_def fun_upd_apply sapply_cong scomp_Var scomp_assoc)
+
 lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<sigma> eqs"
-  proof(induction eqs rule: unify.induct)
+  proof(induction rule: unify.induct)
     case 1
     then show ?case by simp
   next
-    case (2 x t s)
-    then show ?case sorry
+    case unsi: (2 x t s)
+    then show ?case proof-
+      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
+      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
+      then show ?case proof(cases)
+        case 1
+        then show ?thesis proof-
+          from 1 unsi(3) have opt:
+            "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
+            by simp
+          hence
+            "\<exists> \<sigma> . unify (Var(x := t) \<cdot>s s) = Some \<sigma>"
+            by (simp add: scomp_opt_fst)
+          then obtain \<sigma>p where sigp_unify:
+            "unify (Var(x := t) \<cdot>s s) = Some \<sigma>p"
+            by(rule exE)
+          from this opt have sig:
+            "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
+          from sigp_unify 1 unsi.IH(1) have 
+            "unifies \<sigma>p (Var(x := t) \<cdot>s s)" 
+            sorry
+          from this sig 1 have
+            "unifies \<sigma> s"
+            by(simp add: unifies_sapply subst_redundancy scomp_assoc)
+          moreover from sig 1 have
+            "unifies_eq \<sigma> (Var x, t)"
+            by (simp add: unifies_eq_def; metis fun_upd_apply sapply_cong scomp_Var scomp_sapply)
+         ultimately show ?thesis by simp
+        qed
+      next
+        case 2
+        then show ?thesis proof-
+          from 2 unsi(3) have
+            "t = Var x"
+            by fastforce
+          moreover from this unsi(3) have
+            "unify s = Some \<sigma>"
+            by simp
+          ultimately show ?thesis using unsi(2) 2 by(simp add: unifies_eq_def)
+        qed
+      qed
+    qed
   next
     case (3 v va x s)
     then show ?case by (simp add: unifies_eq_def)
   next
     case (4 f0 l0 f1 l1 s)
     then show ?case proof-
-      from 4(2) have assms:
+      from 4(2) have
         "(f0 = f1 \<and> length l0 = length l1) \<and> (unify (term_zip l0 l1 @ s) = Some \<sigma>)"
-        apply(simp)
-        by (metis option.distinct(1))
-      from 4(1) assms have
+        by (simp; metis option.distinct(1))
+      moreover from this 4(1) have
         "unifies \<sigma> (term_zip l0 l1 @ s)" by simp
-      from assms have eq:
-        "unify ((Fun f0 l0, Fun f1 l1) # s) = unify (term_zip l0 l1 @ s)"
-        by simp
-      from 4(1) assms show ?thesis
-        sorry
+      ultimately show ?thesis using 4(1) by(simp only: fun_unifies)
     qed
   qed
+(*
+lemma temp: "\<lbrakk>
+  length l0 = length l1; f0 = f1;
+  unify (term_zip l0 l1 @ s) = Some \<sigma>; 
+  \<forall>\<tau>. unifies \<tau> (term_zip l0 l1 @ s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)
+\<rbrakk> \<Longrightarrow> \<forall>\<tau>. unifies \<tau> ((Fun f0 l0, Fun f1 l1) # s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)"
+  apply(induction rule: term_zip.induct)
+    apply(simp_all add: unifies_eq_def)
+  sorry
+*)
+(*lemma "\<lbrakk>f0 = f1; length l0 = length l1; unifies \<tau> (term_zip l0 l1 @ s) \<rbrakk> \<Longrightarrow> unifies \<tau> ((Fun f0 l0, Fun f1, l1) # s)"*)
 
 lemma unify_soundness_ii: "unify eqs = Some \<sigma> \<Longrightarrow> 
   ((\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
@@ -332,25 +401,161 @@ proof(induction eqs rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case (2 x t s)
-  then show ?case sorry
+  case unsi: (2 x t s)
+  then show ?case proof-
+      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
+      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
+      then show ?case proof(cases)
+        case 1
+        then show ?thesis sorry
+      next
+        case 2
+        then show ?thesis proof-
+          from 2 unsi(3) have
+            "t = Var x"
+            by fastforce
+          moreover from this unsi(3) have
+            "unify s = Some \<sigma>"
+            by simp
+          ultimately show ?thesis using unsi(2) 2 by(simp add: unifies_eq_def)
+        qed
+      qed
+  qed
 next
   case (3 v va x s)
   then show ?case by (simp add: unifies_eq_def) 
 next
   case (4 f0 l0 f1 l1 s)
-  then show ?case sorry
-qed
+  then show ?case proof-
+      fix \<tau> 
+      from 4(2) have
+        "(f0 = f1 \<and> length l0 = length l1) \<and> (unify (term_zip l0 l1 @ s) = Some \<sigma>)"
+        by(simp; metis option.distinct(1))
+      moreover from this 4(1) have
+        "\<forall>\<tau>. unifies \<tau> (term_zip l0 l1 @ s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)" 
+        by simp
+      ultimately show ?thesis 
+        by (metis fun_unifies)
+    qed
+  qed
 
 theorem unify_soundness: "unify eqs = Some \<sigma> \<Longrightarrow> is_mgu \<sigma> eqs"
   by(simp add: is_mgu_def unify_soundness_i unify_soundness_ii)
 
 text \<open> (c) \<close>
 
-(*TODO fix theorem*)
-theorem unify_completeness: "\<forall> eqs . (\<exists> \<sigma> . unifies \<sigma> eqs) \<longrightarrow> (unify eqs) = Some \<tau>"
-  sorry
+lemma unifies_wf: "unifies_eq \<sigma> (Fun f0 l0, Fun f1 l1) \<Longrightarrow> f0 = f1 \<and> length l0 = length l1"
+  by (simp add: unifies_eq_def; metis length_map)
 
+lemma unifies_zip: "map ((\<cdot>) \<sigma>) l0 = map ((\<cdot>) \<sigma>) l1 \<Longrightarrow> unifies \<sigma> (term_zip l0 l1)"
+  apply(induction rule: term_zip.induct)
+  by(simp_all add: unifies_eq_def)
+(*
+lemma temp2:
+  assumes assms: "x \<in> fv t" and "t \<noteq> Var x"
+  shows "t = Fun f l"
+proof(rule ccontr)
+  fix y
+  assume "t \<noteq> Fun f l"
+  hence "t = Var y" sorry
+qed 
+
+lemma temp: 
+  assumes assms: "x \<in> fv t" and "unifies_eq \<sigma> (Var x, t)"
+  shows "t = Var x"
+proof(rule ccontr)  
+  fix f l
+  assume contr: "t \<noteq> Var x"
+  from assms(2) have "\<sigma> x = \<sigma> \<cdot> t" by (simp add: unifies_eq_def)
+  from assms(1) contr have
+    "t = Fun f l"
+
+qed
+*)
+lemma lemma2: "(\<exists> \<sigma> . unifies \<sigma> eqs) \<Longrightarrow> \<not> Option.is_none (unify eqs)"
+proof(induction rule: unify.induct)
+  case 1
+  then show ?case by simp
+next
+  case unsi: (2 x t s)
+  then show ?case proof-
+      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
+      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
+      then show ?case proof(cases)
+        case 1
+        then show ?thesis sorry
+      next
+        case 2
+        then show ?thesis proof-
+          from unsi(3) obtain \<sigma> where si:
+            "unifies \<sigma> ((Var x, t) # s)"
+            by(rule exE)
+          hence
+            "\<exists> \<sigma> . unifies \<sigma> s"
+            by(simp; blast)
+          moreover from si 2 have
+            "t = Var x"
+            sorry
+          show ?thesis sorry
+        qed
+      qed
+    qed
+next
+  case (3 v va x s)
+  then show ?case proof-
+    from 3(2) obtain \<sigma> where "unifies \<sigma> ((Fun v va, Var x) # s)"
+      by(rule exE)
+    then have 
+      "unifies \<sigma> ((Var x, Fun v va) # s)"
+      by(simp add: unifies_eq_def)
+    then have
+      "\<exists>\<sigma>. unifies \<sigma> ((Var x, Fun v va) # s)"
+      by blast
+    then have
+      "\<not> Option.is_none (unify ((Var x, Fun v va) # s))"
+      using 3(1) by simp
+    then show ?thesis by simp
+  qed
+next
+  case (4 f0 l0 f1 l1 s)
+  then show ?case proof-
+    from 4(2) obtain \<sigma> where "unifies \<sigma> ((Fun f0 l0, Fun f1 l1) # s)"
+      by(rule exE)
+    hence
+      "unifies_eq \<sigma> (Fun f0 l0, Fun f1 l1)"
+      by(simp)
+    hence lens:
+      "f0 = f1 \<and> length l0 = length l1"
+      by(simp add: unifies_wf)
+    from 4(2) obtain \<sigma> where "unifies \<sigma> ((Fun f0 l0, Fun f1 l1) # s)"
+      by(rule exE)
+    hence
+      "unifies \<sigma> (term_zip l0 l1 @ s)"
+        proof-
+        from \<open>unifies \<sigma> ((Fun f0 l0, Fun f1 l1) # s)\<close>
+        have "unifies_eq \<sigma> (Fun f0 l0, Fun f1 l1)" by simp
+        from this lens have 
+          "unifies \<sigma> (term_zip l0 l1)"
+          by(simp add: unifies_eq_def unifies_zip)
+        moreover from \<open>unifies \<sigma> ((Fun f0 l0, Fun f1 l1) # s)\<close>
+        have "unifies \<sigma> s" by simp
+        ultimately show ?thesis by(simp add: unifies_forall; auto)
+      qed
+    hence 
+      "\<exists> \<sigma> . unifies \<sigma> (term_zip l0 l1 @ s)"
+      by blast
+    from this lens 4(1) have  
+      "\<not> Option.is_none (unify (term_zip l0 l1 @ s))"
+      by simp
+    moreover have
+      "unify (term_zip l0 l1 @ s) = unify ((Fun f0 l0, Fun f1 l1) # s)"
+      by (simp add: lens)
+    ultimately show ?thesis by(simp)
+  qed
+qed
+        
+theorem unify_completeness: "(\<exists> \<sigma> . unifies \<sigma> eqs \<longrightarrow> unify eqs = Some \<sigma>)"
+  by (metis is_none_simps(1) lemma2 option.exhaust_sel) 
 
 text \<open> (d) \<close>
 
@@ -358,21 +563,79 @@ lemma fv_swap:
   "fv_eq (t0, t1) = fv_eq (t1, t0)"
   by(simp add: fv_eq_def; blast)
 
+lemma fv_fun:
+  "length l0 = length l1 \<Longrightarrow> fv_eqs ((Fun f0 l0, Fun f1 l1) # s) = fv_eqs ((term_zip l0 l1) @ s)"
+proof(induction rule: term_zip.induct)
+  case (1 t1)
+  then show ?case by (simp add: fv_eq_def)
+next
+  case (2 v va)
+  then show ?case by simp
+next
+  case (3 h0 t0 h1 t1)
+  then show ?case proof-
+    from 3(2) have lens:
+      "length t0 = length t1"
+      by simp
+    have
+      "fv_eqs ((Fun f0 (h0 # t0), Fun f1 (h1 # t1)) # s) = fv h0 \<union> fv h1 \<union> fv_eqs ((Fun f0 t0, Fun f1 t1) # s)"
+      by(simp add: fv_eq_def; auto)
+    moreover have
+      "... = fv h0 \<union> fv h1 \<union> fv_eqs (term_zip t0 t1 @ s)"
+      using "3.IH" lens by(simp)
+    moreover have
+      "... = fv_eqs (term_zip (h0 # t0) (h1 # t1) @ s)"
+      by(simp add: fv_eq_def)
+    ultimately show ?thesis by simp
+  qed
+qed
+
+
 lemma unify_fv_sapply: "unify eqs = Some \<sigma> \<Longrightarrow> fv_eqs (\<sigma> \<cdot>s eqs) \<subseteq> fv_eqs eqs"
 proof(induction eqs rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case (2 x t s)
-  then show ?case sorry
+  case unsi: (2 x t s)
+  then show ?case proof-
+    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
+    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
+    then show ?case proof(cases)
+      case 1
+      then show ?thesis sorry
+    next
+      case 2
+      then show ?thesis proof-
+        from 2 unsi(3) have t:
+          " t = Var x"
+          by fastforce
+        moreover from unsi(3) have
+          "unify s = Some \<sigma>"
+          by (simp add: calculation)
+        ultimately have ih:
+          "fv_eqs (\<sigma> \<cdot>s s) \<subseteq> fv_eqs s"
+          using unsi(2) by simp
+        from this t have
+          "fv_eq (Var x, t) \<union> fv_eqs (\<sigma> \<cdot>s s) \<subseteq> fv_eqs ((Var x, t) # s)"
+          by (simp; blast)
+        from this show ?thesis apply(simp add: fv_sapply_eqs fv_sapply_eq) try
+      qed
+    qed
+  qed
 next
   case (3 v va x s)
   then show ?case by(simp add: fv_sapply_eqs sapply_eq_def fv_swap)
 next
   case (4 f0 l0 f1 l1 s)
   then show ?case proof-
-    have "fv_eqs (\<sigma> \<cdot>s (term_zip l0 l1 @ s)) \<subseteq> fv_eqs (term_zip l0 l1 @ s)" sorry
-    from this 4 show ?thesis sorry
+    from 4(2) have
+      "f0 = f1 \<and> length l0 = length l1"
+      by (simp; metis option.distinct(1))
+    moreover from 4(2) have
+      "unify (term_zip l0 l1 @ s) = Some \<sigma>"
+      by (simp add: calculation)
+    ultimately have "fv_eqs (\<sigma> \<cdot>s (term_zip l0 l1 @ s)) \<subseteq> fv_eqs (term_zip l0 l1 @ s)" using 4(1) by simp
+    from this 4 show ?thesis by(simp only: fv_sapply_eqs fv_fun; metis Part1.Fun fv_fun option.simps(3))
   qed
 qed
 
@@ -454,51 +717,42 @@ lemma wf_eqs_sapply: "\<lbrakk> wf_subst arity \<sigma>; wf_term arity t;  wf_eq
 
 lemma wf_subst_unify:
   "\<lbrakk> unify eqs = Some \<sigma>; wf_eqs arity eqs \<rbrakk> \<Longrightarrow> wf_subst arity \<sigma>"
-proof(induction eqs rule: unify.induct)
+proof(induction rule: unify.induct)
   case 1
   then show ?case by(simp add: wf_subst_def)
 next
-  case (2 x t s)
+  case unsi: (2 x t s)
   then show ?case proof-
-
-    from 2(4)have s_wf:
+    from unsi(4)have s_wf:
       "wf_eqs arity s"
       by (simp add: wf_eqs_def)
-    from 2(4) have t_wf:
-      "wf_term arity t"
-      by(simp add: wf_eqs_def)
-
-    (*To fix overshadowing in second next case*)
-    from 2(2) have chain:
-      "\<not> x \<notin> fv t \<Longrightarrow> t = Var x \<Longrightarrow> unify s = Some \<sigma> \<Longrightarrow> wf_eqs arity s \<Longrightarrow> wf_subst arity \<sigma>"
-      by simp
-    from 2(3) have var_unify:
-      "unify ((Var x, t) # s) = Some \<sigma>"
-      by simp
 
     have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
     then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
     then show ?case proof(cases)
       case 1
       then show ?thesis proof-
-          from 2(3) 1 have
+          from unsi(4) have t_wf:
+            "wf_term arity t"
+            by(simp add: wf_eqs_def)
+          from unsi(3) 1 have
             "unify (Var(x := t) \<cdot>s s) = Some \<sigma>"
             using unifies.simps(2) unifies_sapply unify_completeness unify_soundness_i by blast
           moreover from 1 t_wf s_wf have
             "wf_eqs arity (Var(x := t) \<cdot>s s)"
             by(simp add: wf_single_subst wf_eqs_sapply)
-          ultimately show ?thesis using 1 2(1) by simp
+          ultimately show ?thesis using 1 unsi(1) by simp
         qed
     next
       case 2
       then show ?thesis proof-
-        from 2 var_unify have
+        from 2 unsi(3) have
           "t = Var x"
           by fastforce
-        moreover from var_unify have
+        moreover from unsi(3) have
           "unify s = Some \<sigma>"
           by (simp add: calculation)
-        ultimately show ?thesis using chain 2 s_wf by simp
+        ultimately show ?thesis using unsi(2) 2 s_wf by simp
       qed
     qed
   qed
