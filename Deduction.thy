@@ -58,7 +58,7 @@ lemma deduce_cut:
 section \<open>Assignment 7\<close>
 
 datatype constraint = 
-  Constraint "msg list" "msg list" "msg" ( "((2_/|_)/ \<rhd>_)" [67,67,67] 66)
+  Constraint "msg list" "msg list" "msg" ( "((2_/|_)/ \<rhd> _)" [67,67,67] 66)
 
 type_synonym constraint_system = "constraint list"
 
@@ -468,6 +468,13 @@ proof(cases rule: rer1.cases)
     by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
 next
   case (Ksub M1 x u M2 A t)
+  (* have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+    using Ksub msg_fv_sapply_sdom_svran[of \<sigma> _] 
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
+    apply clarsimp 
+  have "msg_svran \<sigma> \<subseteq> c_fv c"
+    using Ksub msg_unify_svran_fv[of _ \<sigma>]
+    apply (auto simp add: c_fv_def msg_fv_eqs_def msg_fv_eq_def) *)
   then show ?thesis sorry
 qed (auto simp add: cs_fv_def c_fv_def cs_sapply_id msg_fv_def)
 
@@ -637,9 +644,7 @@ next
   finally show ?thesis
     using Sdec
     unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    by (simp; metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
 next
   case (Adec M1 u M2 A t)
   have "weight ((M1 @ u # M2)|(PubKeyEncrypt \<iota> u # A) \<rhd>t) = (\<chi>_list (M1 @ M2) * (\<chi> u) * (\<theta> t))"
@@ -660,9 +665,7 @@ next
   finally show ?thesis
     using Adec
     unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    by (simp; metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
 next
   case (Ksub M1 x u M2 A t)
   have "Variable \<noteq> Variable(x := \<iota>)"
