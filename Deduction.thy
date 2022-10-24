@@ -449,21 +449,23 @@ next
 qed
 
 lemma lemma_10: 
-  assumes "c  \<leadsto>\<^sub>1[\<sigma>] (cs @ cs')"
+  assumes "c  \<leadsto>\<^sub>1[\<sigma>] cs"
   shows "cs_fv(cs @ (cs_sapply \<sigma> cs')) \<subseteq> cs_fv(c # cs')"
   using assms
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
-  have "x \<in> cs_fv (cs_sapply \<sigma> cs') \<Longrightarrow> x \<in> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
-    using msg_fv_sapply_sdom_svran Unif
-    unfolding cs_fv_def c_fv_def cs_sapply_def
-    by force
+  have "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+    using Unif msg_fv_sapply_sdom_svran[of \<sigma> _] 
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
+    by (simp; blast)
   moreover have "msg_svran \<sigma> \<subseteq> c_fv c"
-    sorry
+    using Unif msg_unify_svran_fv[of "[(t, u)]" \<sigma>]
+    by (auto simp add: c_fv_def msg_fv_eqs_def msg_fv_eq_def)
+  (* TODO: Rewrite this proof *)
   ultimately show ?thesis
     using Unif
-    unfolding cs_fv_def c_fv_def cs_sapply_def
-    by force
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
+    by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
 next
   case (Ksub M1 x u M2 A t)
   then show ?thesis sorry

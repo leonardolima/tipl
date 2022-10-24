@@ -95,6 +95,12 @@ definition msg_sapply :: "msg_subst \<Rightarrow> msg \<Rightarrow> msg" (infixr
 definition msg_scomp :: "msg_subst \<Rightarrow> msg_subst \<Rightarrow> msg_subst" (infixl "\<circ>m" 55)
   where "msg_scomp \<sigma> \<tau> = msg_of_term \<circ> ((embed \<circ> \<sigma>) \<circ>s (embed \<circ> \<tau>))"
 
+definition msg_fv_eq :: "msg_equation \<Rightarrow> string set" where
+  "msg_fv_eq eq = (msg_fv (fst eq) \<union> msg_fv (snd eq))"
+
+definition msg_fv_eqs :: "msg_equations \<Rightarrow> string set" where
+  "msg_fv_eqs eqs = \<Union>(set (map msg_fv_eq eqs))"
+
 lemma fv_sapply: "msg_fv (\<sigma> \<cdot>m t) = fv ((embed \<circ> \<sigma>) \<cdot> (embed t))"
   by (simp add: fv_sapply msg_fv_def msg_sapply_def wf_term_sapply)
 
@@ -122,12 +128,10 @@ lemma msg_svran_single_non_trivial [simp]: "t \<noteq> Variable x \<Longrightarr
 lemma msg_sdomI: "\<sigma> x \<noteq> Variable x \<Longrightarrow> x \<in> msg_sdom \<sigma>"
   by(simp add: msg_sdom_def sdom_def msg_var_ineq)
 
-lemma msg_fv_sapply_sdom_svran: "x \<in> msg_fv (\<sigma> \<cdot>m t) \<Longrightarrow> x \<in> (msg_fv t - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+lemma msg_fv_sapply_sdom_svran: "msg_fv (\<sigma> \<cdot>m t) \<subseteq> (msg_fv t - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
   unfolding msg_sdom_def msg_svran_def
   using svapply_svdom_svran msg_fv_def msg_sapply_def fv_sapply
-  apply simp
-  apply fastforce
-  done
+  by (simp; fastforce)
 
 lemma msg_sdom_scomp: "msg_sdom (\<sigma> \<circ>m \<tau>) \<subseteq> msg_sdom \<sigma> \<union> msg_sdom \<tau>"
   unfolding msg_sdom_def
@@ -180,7 +184,7 @@ lemma msg_unifies_eq_alt: "msg_unifies_eq \<sigma> pair = (\<sigma> \<cdot>m fst
 definition msg_unifies :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
   "msg_unifies \<sigma> pairs = unifies (embed \<circ> \<sigma>) (map (\<lambda>pair. map_prod embed embed pair) pairs)"
 
-(* Unification definition is a recursive function *)
+(* remember: corresponding definition is a recursive function *)
 lemma msg_unifies_alt: "msg_unifies \<sigma> pairs = (\<forall>pair \<in> set pairs. msg_unifies_eq \<sigma> pair)"
   unfolding msg_unifies_eq_def msg_unifies_def
   apply (auto simp add: unifies_eq_def)
@@ -201,17 +205,22 @@ lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> msg_pairs = (msg_unifies \<sigma> msg
    apply(intro iffI impI conjI; clarsimp)
     apply fastforce *)
   sorry
+
+lemma msg_unify_svran_fv: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_svran \<sigma> \<subseteq> msg_fv_eqs eqs"
+  using unify_svran_fv[of _ "embed \<circ> \<sigma>"]
+  unfolding msg_unify_def msg_svran_def msg_fv_eqs_def msg_fv_eq_def msg_fv_def
+  sorry
   
 subsection \<open>(e)\<close>
 
-lemma msg_unify_unifiess:
-  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifiess \<sigma> MU"
+lemma msg_unify_unifies:
+  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifies \<sigma> MU"
   sorry
   
 subsection \<open>(f)\<close>
 
 lemma msg_unify_mgu: 
-  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifiess \<tau> MU \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
+  "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifies \<tau> MU \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
   sorry
 
 lemma msg_unify_soundness:
