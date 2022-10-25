@@ -388,7 +388,6 @@ definition \<chi>_list :: "msg list \<Rightarrow> nat" where
 definition weight :: "constraint \<Rightarrow> nat" where
   "weight c = \<chi>_list (c_M c) * \<theta> (c_t c)"
 
-(* TODO: Rename *_positive lemmas *)
 lemma \<theta>_geq_1: "\<theta> m \<ge> 1"
   apply(induction m)
   by simp_all
@@ -443,9 +442,7 @@ next
   then show ?case 
     using msg_var_sapply
     unfolding cs_sapply_def c_sapply_def msg_sapply_def
-    apply (simp add: Cons.IH)
-    apply (metis c_A.elims c_M.simps c_t.simps)
-    done
+    by (cases a; simp add: Cons.IH)
 qed
 
 lemma lemma_10: 
@@ -693,6 +690,12 @@ next
   then show ?thesis
     using Ksub
     by simp
+qed
+
+theorem wf_red: "wf ({ (cs, cs'). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs' })"
+proof(cases rule: rer.cases)
+  case Context
+  then show ?thesis sorry
 qed
 
 end

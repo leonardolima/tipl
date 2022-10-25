@@ -2,6 +2,10 @@ theory Execute
   imports Main Unification Term Deduction
 begin
 
+section \<open>Assignment 9\<close>
+
+subsection \<open>(a)\<close>
+
 definition solve_Unif :: "constraint \<Rightarrow> (constraint_system \<times> msg_subst) list" where
   "solve_Unif c = (if \<not>(is_Variable (c_t c)) then
                      (foldr (\<lambda>u acc. let subst = msg_unify [((c_t c), u)] in
@@ -15,7 +19,7 @@ fun solve_Comp :: "constraint \<Rightarrow> (constraint_system \<times> msg_subs
 | "solve_Comp (M | A \<rhd> (SymEncrypt k t)) = [([M | A \<rhd> k, M | A \<rhd> t], Variable)]"
 | "solve_Comp (M | A \<rhd> (PubKeyEncrypt k t)) = [([M | A \<rhd> k, M | A \<rhd> t], Variable)]"
 | "solve_Comp (M | A \<rhd> (Sig \<iota> t)) = [([M | A \<rhd> \<iota>, M | A \<rhd> t], Variable)]"
-| "solve_Comp _ = undefined"
+| "solve_Comp _ = []"
 
 definition solve_Proj :: "constraint \<Rightarrow> (constraint_system \<times> msg_subst) list" where
   "solve_Proj c = concat (map (\<lambda>m. case m of Pair u v \<Rightarrow> let A = c_A c in
@@ -50,10 +54,37 @@ definition solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<ti
                                    let ksub = solve_Ksub c in
                                    (unif @ comp @ proj @ sdec @ adec @ ksub)) cs)"
 
+subsection \<open>(b)\<close>
+
+primrec map_until :: "((constraint_system \<times> msg_subst) \<Rightarrow> (constraint_system \<times> msg_subst) option) \<Rightarrow> 
+                  (constraint_system \<times> msg_subst) list \<Rightarrow> (constraint_system \<times> msg_subst) option" where
+  "map_until f [] = None" 
+| "map_until f (x # xs) = (let res = f x in 
+                           if Option.is_none res then (map_until f xs)
+                           else res)"
+
 function search :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) option" where
-  "search cs = (let rer_res = solve_rer cs in None)"
+  "search cs = (if is_simple_cs cs then Some(cs, Variable)
+                else (let rer_res = solve_rer cs in 
+                      map_until (\<lambda>(cs', \<sigma>). let res = search cs' in 
+                                            if Option.is_none res then None
+                                            else (let cs'' = fst(the res) in
+                                            let \<tau> = snd(the res) in
+                                            Some(cs'', \<tau> \<circ>m \<sigma>))) rer_res))"
   by pat_completeness auto
 termination
   sorry
+
+subsection \<open>(c)\<close>
+
+value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')) ]"
+
+value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
+                [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1'')))),
+                [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0'')),
+                [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))]"
+
+(* value "[ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
+         ]" *)
 
 end
