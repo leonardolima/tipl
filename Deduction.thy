@@ -348,14 +348,12 @@ lemma lemma_9:
   using assms
 proof(induction rule: rer_star.induct)
   case (Refl cs)
-  then show ?case 
-    by auto
+  then show ?case by auto
 next
-  (* TODO: Rewrite this (without metis) *)
-  case (Trans cs' \<rho> cs'' cs \<rho>')
+  case (Trans cs \<sigma> cs'' \<tau> cs')
   then show ?case 
-    using lemma_8 one_step_red_soundness msg_scomp_assoc
-    by metis
+    using lemma_8[of cs \<sigma> cs''] one_step_red_soundness msg_scomp_assoc
+    by (simp; fastforce)
 qed
 
 theorem red_soundness: "red cs \<subseteq> sol(cs)"
@@ -465,14 +463,18 @@ proof(cases rule: rer1.cases)
     by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
 next
   case (Ksub M1 x u M2 A t)
-  (* have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+  have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs @ cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
     using Ksub msg_fv_sapply_sdom_svran[of \<sigma> _] 
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
-    apply clarsimp 
-  have "msg_svran \<sigma> \<subseteq> c_fv c"
-    using Ksub msg_unify_svran_fv[of _ \<sigma>]
-    apply (auto simp add: c_fv_def msg_fv_eqs_def msg_fv_eq_def) *)
-  then show ?thesis sorry
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def   
+    by (auto; blast; blast)
+  moreover have "msg_sdom \<sigma> = {x}"
+    using Ksub msg_sdom_single_non_trivial[of \<iota> x] by simp
+  moreover have "msg_svran \<sigma> = msg_fv \<iota>"
+    using Ksub msg_svran_single_non_trivial[of \<iota> x] by simp
+  ultimately show ?thesis
+    using Ksub
+    unfolding cs_fv_def cs_sapply_def c_sapply_def 
+    sorry
 qed (auto simp add: cs_fv_def c_fv_def cs_sapply_id msg_fv_def)
 
 lemma lemma_11: 
@@ -535,11 +537,7 @@ next
     using CompHash
     by simp
   finally show ?thesis
-    using CompHash
-    unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis add.right_neutral sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    using CompHash unfolding \<eta>_2_def by auto
 next
   case (CompPair M A t1 t2)
   have "weight (M|A \<rhd>t1) + weight (M|A \<rhd>t2) = (\<chi>_list M * (\<theta> t1)) + (\<chi>_list M * (\<theta> t2))"
@@ -557,11 +555,7 @@ next
     using CompPair
     by simp
   finally show ?thesis
-    using CompPair
-    unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis add.right_neutral sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    using CompPair unfolding \<eta>_2_def by auto
 next
   case (CompSymEncrypt M A k t)
   have "weight (M|A \<rhd>k) + weight (M|A \<rhd>t) = (\<chi>_list M * (\<theta> k)) + (\<chi>_list M * (\<theta> t))"
@@ -580,10 +574,7 @@ next
     by simp
   finally show ?thesis
     using CompSymEncrypt
-    unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis add.right_neutral sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    unfolding \<eta>_2_def unfolding \<eta>_2_def by auto
 next
   case (CompPubEncrypt M A k t)
   have "weight (M|A \<rhd>k) + weight (M|A \<rhd>t) = (\<chi>_list M * (\<theta> k)) + (\<chi>_list M * (\<theta> t))"
@@ -601,11 +592,7 @@ next
     using CompPubEncrypt
     by simp
   finally show ?thesis
-    using CompPubEncrypt
-    unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis add.right_neutral sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    using CompPubEncrypt unfolding \<eta>_2_def by auto
 next
   case (CompSig M A t)
   have "weight (M|A \<rhd>\<iota>) + weight (M|A \<rhd>t) = (\<chi>_list M * (\<theta> \<iota>)) + (\<chi>_list M * (\<theta> t))"
@@ -623,11 +610,7 @@ next
     using CompSig
     by simp
   finally show ?thesis
-    using CompSig
-    unfolding \<eta>_2_def sum_list_def
-    apply simp
-    apply (metis add.right_neutral sum_list.Cons sum_list.Nil sum_list_def)
-    done
+    using CompSig unfolding \<eta>_2_def by auto
 next
   case (Proj M1 u v M2 A t)
   have pair_ineq: "(\<chi> u) * (\<chi> v) < (\<chi> (Pair u v))"
@@ -644,9 +627,7 @@ next
     by auto
   also have "... < ((\<chi>_list (M1 @ M2) * (\<chi> u) * (\<theta> t)) + (\<chi>_list (M1 @ M2) * ((\<theta> k) + 1) * (\<theta> t)))"
     using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
-    apply simp
-    apply (metis One_nat_def Suc_le_lessD add.commute add_lessD1 less_add_same_cancel2 n_less_n_mult_m nat_mult_1_right order_less_le)
-    done
+    by (clarsimp; metis One_nat_def Suc_le_lessD add.commute add_lessD1 less_add_same_cancel2 n_less_n_mult_m nat_mult_1_right order_less_le)
   also have "... = (\<chi>_list (M1 @ M2) * (\<chi> u + \<theta> k + 1) * (\<theta> t))"
     by (simp add: add_mult_distrib add_mult_distrib2)
   also have "... = (\<chi>_list (M1 @ M2) * (\<chi> (SymEncrypt k u)) * (\<theta> t))"
@@ -659,9 +640,7 @@ next
     unfolding weight_def
     by simp
   finally show ?thesis
-    using Sdec
-    unfolding \<eta>_2_def sum_list_def
-    by (simp; metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
+    using Sdec unfolding \<eta>_2_def by auto
 next
   case (Adec M1 u M2 A t)
   have "weight ((M1 @ u # M2)|(PubKeyEncrypt \<iota> u # A) \<rhd>t) = (\<chi>_list (M1 @ M2) * (\<chi> u) * (\<theta> t))"
@@ -680,22 +659,16 @@ next
     unfolding weight_def
     by simp
   finally show ?thesis
-    using Adec
-    unfolding \<eta>_2_def sum_list_def
-    by (simp; metis Nat.add_0_right sum_list.Cons sum_list.Nil sum_list_def)
+    using Adec unfolding \<eta>_2_def by auto
 next
   case (Ksub M1 x u M2 A t)
   have "Variable \<noteq> Variable(x := \<iota>)"
     by (metis fun_upd_def msg.distinct(1))
   then show ?thesis
-    using Ksub
-    by simp
+    using Ksub by simp
 qed
 
 theorem wf_red: "wf ({ (cs, cs'). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs' })"
-proof(cases rule: rer.cases)
-  case Context
-  then show ?thesis sorry
-qed
+  sorry
 
 end
