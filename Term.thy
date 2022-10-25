@@ -210,6 +210,12 @@ lemma msg_unify_svran_fv: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_s
   using unify_svran_fv[of _ "embed \<circ> \<sigma>"]
   unfolding msg_unify_def msg_svran_def msg_fv_eqs_def msg_fv_eq_def msg_fv_def
   sorry
+
+lemma msg_unify_sdom_fv: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_sdom \<sigma> \<subseteq> msg_fv_eqs eqs"
+  sorry
+
+lemma msg_unify_sdom_svran: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_sdom \<sigma> \<inter> msg_svran \<sigma> = {}"
+  sorry
   
 subsection \<open>(e)\<close>
 

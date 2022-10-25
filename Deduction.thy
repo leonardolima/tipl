@@ -485,7 +485,27 @@ lemma lemma_11:
   using assms
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
-  then show ?thesis sorry
+  obtain x where "x \<in> msg_sdom(\<sigma>)"
+    using assms msg_var_ineq
+    unfolding msg_sdom_def sdom_def
+    by (simp; blast)
+  moreover have "msg_sdom(\<sigma>) \<subseteq> c_fv(c)"
+    using Unif msg_unify_sdom_fv[of "[(t, u)]" \<sigma>]
+    unfolding c_fv_def msg_fv_eqs_def msg_fv_eq_def
+    by auto
+  ultimately have "x \<in> cs_fv(c # cs')"
+    unfolding cs_fv_def by auto
+  moreover have "cs_fv(cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom(\<sigma>)) \<union> msg_svran(\<sigma>)"
+    using Unif msg_fv_sapply_sdom_svran[of \<sigma>]
+    unfolding cs_fv_def c_fv_def cs_sapply_def
+    by simp
+  moreover have "msg_sdom(\<sigma>) \<inter> msg_svran(\<sigma>) = {}"
+    using Unif msg_unify_sdom_svran[of "[(t, u)]" \<sigma>]
+    by simp
+  ultimately show ?thesis
+    using Unif
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
+    by auto
 next
   case (Ksub M1 x u M2 A t)
   then show ?thesis sorry
