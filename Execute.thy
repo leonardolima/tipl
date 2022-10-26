@@ -77,14 +77,15 @@ termination
 
 subsection \<open>(c)\<close>
 
-value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')) ]"
-
 value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
                 [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1'')))),
                 [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0'')),
                 [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))]"
 
-(* value "[ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
-         ]" *)
+value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
+              [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''NA1'') (Constant ''a''))),
+              [PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Variable ''A0'') (Pair (Constant ''na0'') (Variable ''NB0''))),
+              [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Constant ''nb1'')),
+              [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))]"
 
 end
