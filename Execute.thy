@@ -45,14 +45,15 @@ definition solve_Ksub :: "constraint \<Rightarrow> (constraint_system \<times> m
                                                                              [([c_sapply (Variable(x := \<iota>)) ((PubKeyEncrypt (Variable x) u # M) | A \<rhd> (c_t c))], Variable)]
                                    | _ \<Rightarrow> []) (c_M c))"
 
+(* TOFIX: Substitution application step is missing *)
 definition solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
-  "solve_rer cs = concat (map (\<lambda>c. let unif = solve_Unif c in
-                                   let comp = solve_Comp c in
-                                   let proj = solve_Proj c in
-                                   let sdec = solve_Sdec c in
-                                   let adec = solve_Adec c in
-                                   let ksub = solve_Ksub c in
-                                   (unif @ comp @ proj @ sdec @ adec @ ksub)) cs)"
+  "solve_rer cs = List.maps (\<lambda>c. let unif = solve_Unif c in
+                                 let comp = solve_Comp c in
+                                 let proj = solve_Proj c in
+                                 let sdec = solve_Sdec c in
+                                 let adec = solve_Adec c in
+                                 let ksub = solve_Ksub c in
+                                 (unif @ comp @ proj @ sdec @ adec @ ksub)) cs"
 
 subsection \<open>(b)\<close>
 
@@ -87,5 +88,12 @@ value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Var
               [PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Variable ''A0'') (Pair (Constant ''na0'') (Variable ''NB0''))),
               [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Constant ''nb1'')),
               [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))]"
+
+section \<open>Assignment 9\<close>
+
+subsection \<open>(a)\<close>
+
+subsection \<open>(b)\<close>
+(* Focus on completeness (applying case analysis on the inductive predicates) *)
 
 end
