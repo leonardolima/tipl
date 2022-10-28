@@ -70,7 +70,6 @@ definition svran :: "('f, 'v) subst \<Rightarrow> 'v set" where
 lemma sdom_Var[simp]: "sdom Var = {}"
   by(simp add: sdom_def)
   
-
 lemma svran_Var[simp]: "svran Var = {}"
   by(simp add: svran_def)
   
@@ -471,6 +470,7 @@ lemma unifies_zip: "map ((\<cdot>) \<sigma>) l0 = map ((\<cdot>) \<sigma>) l1 \<
   apply(induction rule: term_zip.induct)
   by(simp_all add: unifies_eq_def)
 
+(* denotes whether the first term is contained in the second term*)
 fun in_term :: "('f, 'v) term \<Rightarrow> ('f, 'v) term \<Rightarrow> bool" 
   (infixr "tin" 67) where
   "in_term t (Var x) = (t = Var x)"
@@ -591,7 +591,28 @@ next
       then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
       then show ?case proof(cases)
         case 1
-        then show ?thesis sorry
+        then show ?thesis proof-
+          from unsi(3) obtain \<sigma> where si:
+            "unifies \<sigma> ((Var x, t) # s)"
+            by(rule exE)
+          hence
+            "\<sigma> x = \<sigma> \<cdot> t" and sig_s: "unifies \<sigma> s"
+            by(simp_all add: unifies_eq_def)
+          from this 1 have
+            "\<sigma> \<circ>s Var(x := t) = \<sigma>"
+            by (simp add: scomp_def ext)
+          from this sig_s have
+            "unifies \<sigma> (Var(x := t) \<cdot>s s)"
+            by (simp add: unifies_sapply)
+          from this 1 unsi(1) have
+            "\<not> Option.is_none (unify (Var(x := t) \<cdot>s s))"
+            by auto
+          hence
+            "\<not> Option.is_none (scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)))"
+            using Option.is_none_def by fastforce
+          then show ?thesis
+            by (simp add: "1")
+        qed
       next
         case 2
         then show ?thesis proof-
@@ -689,11 +710,41 @@ next
   qed
 qed
 
-lemma test: "\<lbrakk> x \<notin> fv t; unify ((Var x, t) # s) = Some \<sigma> \<rbrakk> \<Longrightarrow>  unify (Var(x := t) \<cdot>s s) = Some \<sigma>"
-  try
 
-lemma unify_fv_sapply: "unify eqs = Some \<sigma> \<Longrightarrow> fv_eqs (\<sigma> \<cdot>s eqs) \<subseteq> fv_eqs eqs"
-proof(induction eqs rule: unify.induct)
+lemma lemma1: "fv (\<sigma> \<cdot> t) \<subseteq> (fv t - sdom \<sigma>) \<union> svran \<sigma>"
+  apply(induction t)
+   apply(meson subsetI svapply_svdom_svran)
+  by auto
+
+lemma lemma1_eq: "fv_eq (\<sigma> \<cdot>e eq) \<subseteq> (fv_eq eq - sdom \<sigma>) \<union> svran \<sigma>"
+  apply(induction eq)
+  apply(simp add: fv_eq_def sapply_eq_def)
+  by (smt (verit) Diff_subset_conv Un_Diff inf_sup_aci(5) le_supI1 lemma1)
+
+lemma lemma1_eqs: "fv_eqs (\<sigma> \<cdot>s eqs) \<subseteq> (fv_eqs eqs - sdom \<sigma>) \<union> svran \<sigma>"
+proof(induction eqs rule: fv_eqs.induct)
+  case 1
+  then show ?case by simp
+next
+  case (2 eq s)
+  then show ?case proof-
+    have 
+      "fv_eqs (\<sigma> \<cdot>s (eq # s)) = fv_eq (\<sigma> \<cdot>e eq) \<union> fv_eqs (\<sigma> \<cdot>s s)"
+      by simp
+    moreover have
+      "fv_eq (\<sigma> \<cdot>e eq) \<subseteq> (fv_eq eq - sdom \<sigma>) \<union> svran \<sigma>"
+      by (simp only: lemma1_eq)
+    ultimately show ?thesis
+      using "2" by auto
+  qed
+qed
+
+lemma lemma1_eqs_single: "x \<notin> fv t \<Longrightarrow> fv_eqs (Var(x := t) \<cdot>s s) \<subseteq> fv t \<union> fv_eqs s"
+using lemma1_eqs by(smt (verit, del_insts) Diff_iff Diff_insert_absorb Un_Diff Un_commute fv.simps(1) 
+                                  insert_Diff1 sdom_single_non_trivial singletonI subset_eq svran_single_non_trivial)
+
+lemma unify_svran_fv: "unify eqs = Some \<sigma> \<Longrightarrow> svran \<sigma> \<subseteq> fv_eqs eqs"
+proof(induction arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
@@ -703,7 +754,33 @@ next
     then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
     then show ?case proof(cases)
       case 1
-      then show ?thesis sorry
+      then show ?thesis proof-
+        from 1 unsi(3) have opt:
+          "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
+          by simp
+        hence
+          "\<exists> \<sigma> . unify (Var(x := t) \<cdot>s s) = Some \<sigma>"
+          by (simp add: scomp_opt_fst)
+        then obtain \<sigma>p where sigp_unify:
+          "unify (Var(x := t) \<cdot>s s) = Some \<sigma>p"
+          by(rule exE)
+        from this opt have sig:
+          "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
+        from sigp_unify 1 unsi.IH(1) have IS:
+          "svran \<sigma>p \<subseteq> fv_eqs (Var(x := t) \<cdot>s s)"
+          by simp
+        from this sig have
+          "svran \<sigma> \<subseteq> fv t \<union> fv_eqs (Var(x := t) \<cdot>s s)"
+          by (smt (verit) Un_assoc Un_commute fun_upd_triv le_supI2 scomp_Var sup.orderE svran_scomp svran_single_non_trivial)
+        moreover have
+          "fv_eqs ((Var x, t) # s) = { x } \<union> fv t \<union> fv_eqs s"
+          by (simp add: fv_eq_def)
+        moreover from 1 lemma1_eqs_single have
+          "fv_eqs (Var(x := t) \<cdot>s s) \<subseteq> fv t \<union> fv_eqs s"
+          by metis
+        ultimately show ?thesis
+          by blast
+      qed
     next
       case 2
       then show ?thesis proof-
@@ -713,13 +790,93 @@ next
         moreover from unsi(3) have
           "unify s = Some \<sigma>"
           by (simp add: calculation)
-        ultimately have ih:
+        ultimately show ?thesis using unsi(2) 2 by auto 
+      qed
+    qed
+  qed
+next
+  case (3 v va x s)
+  then show ?case by(simp add: fv_swap)
+next
+  case (4 f0 l0 f1 l1 s)
+  then show ?case proof-
+    from 4(2) have
+      "f0 = f1 \<and> length l0 = length l1"
+      by (metis Fun option.discI)
+    moreover from 4(2) have
+      "unify (term_zip l0 l1 @ s) = Some \<sigma>"
+      by (simp add: calculation)
+    ultimately show ?thesis using 4(1) by(simp only: fv_fun)
+  qed
+qed
+
+lemma unify_fv_sapply: "unify eqs = Some \<sigma> \<Longrightarrow> fv_eqs (\<sigma> \<cdot>s eqs) \<subseteq> fv_eqs eqs"
+proof(induction eqs arbitrary: \<sigma> rule: unify.induct)
+  case 1
+  then show ?case by simp
+next
+  case unsi: (2 x t s)
+  then show ?case proof-
+    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
+    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
+    then show ?case proof(cases)
+      case 1
+      then show ?thesis proof-
+        from 1 unsi(3) have opt:
+          "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
+          by simp
+        hence
+          "\<exists> \<sigma> . unify (Var(x := t) \<cdot>s s) = Some \<sigma>"
+          by (simp add: scomp_opt_fst)
+        then obtain \<sigma>p where sigp_unify:
+          "unify (Var(x := t) \<cdot>s s) = Some \<sigma>p"
+          by(rule exE)
+        from this opt have sig:
+          "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
+        from sigp_unify 1 unsi.IH(1) have IS:
+          "fv_eqs (\<sigma>p \<cdot>s Var(x := t) \<cdot>s s) \<subseteq> fv_eqs (Var(x := t) \<cdot>s s)"
+          by simp
+        from this sig have
+          "fv_eqs (\<sigma> \<cdot>s s) \<subseteq> fv_eqs (Var(x := t) \<cdot>s s)"
+          by(simp only: sapply_scomp_distrib_eqs)
+        moreover from this 1 have
+          "svran \<sigma> \<subseteq> fv t \<union> fv_eqs s"
+          by (smt (verit, ccfv_threshold) Un_absorb2 fun_upd_triv inf_sup_ord(3) lemma1_eqs_single order_trans
+              scomp_Var sig sigp_unify sup.mono svran_scomp svran_single_non_trivial unify_svran_fv)
+        ultimately show ?thesis
+          by (meson Diff_subset dual_order.trans le_supI lemma1_eqs unify_svran_fv unsi.prems)
+      qed
+    next
+      case 2
+      then show ?thesis proof-
+        from 2 unsi(3) have t:
+          " t = Var x"
+          by fastforce
+        moreover from unsi(3) have un_s:
+          "unify s = Some \<sigma>"
+          by (simp add: calculation)
+        ultimately have
           "fv_eqs (\<sigma> \<cdot>s s) \<subseteq> fv_eqs s"
           using unsi(2) by simp
-        from this t have
-          "fv_eq (Var x, t) \<union> fv_eqs (\<sigma> \<cdot>s s) \<subseteq> fv_eqs ((Var x, t) # s)"
-          by (simp; blast)
-        from this show ?thesis using 2 apply(simp add: fv_sapply_eqs fv_sapply_eq) sorry
+        moreover have 
+          "fv_eqs (\<sigma> \<cdot>s ((Var x, t) # s)) = fv (\<sigma> x) \<union> fv_eqs (\<sigma> \<cdot>s s)"
+          by (simp add: fv_eq_def sapply_eq_def t)
+        moreover from t have 
+          "fv_eqs ((Var x, t) # s) = { x } \<union> fv_eqs s"
+          by(simp add: fv_eq_def)
+        moreover have
+          "fv (\<sigma> x) \<subseteq> { x } \<union> fv_eqs s"
+        proof-
+          from lemma1 have
+            "fv (\<sigma> x) \<subseteq> { x } - sdom \<sigma> \<union> svran \<sigma>"
+            by (metis fv.simps(1) sapply.simps(1))
+          moreover from un_s unify_svran_fv have
+            "svran \<sigma> \<subseteq> fv_eqs s"
+            by blast
+          ultimately show ?thesis by blast
+        qed
+        ultimately show ?thesis
+          by blast
       qed
     qed
   qed
@@ -765,53 +922,22 @@ next
           by(rule exE)
         from this opt have sig:
           "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
+        from this have
+          "sdom \<sigma> \<subseteq> sdom \<sigma>p \<union> { x }"
+          by (metis Un_commute fun_upd_idem_iff insert_is_Un scomp_Var sdom_scomp sdom_single_non_trivial subset_insertI)
         moreover from unsi.IH(1) 1 sigp_unify have IS:
           "sdom \<sigma>p \<subseteq> fv_eqs (Var(x := t) \<cdot>s s)"
           by simp
-        from sig 
+        moreover from 1 have
+          "fv_eqs (Var(x := t) \<cdot>s s) \<union> { x } \<subseteq> fv t \<union> fv_eqs s \<union> { x }"
+          by (simp add: lemma1_eqs_single subset_insertI2)
+        moreover have
+          "fv t \<union> fv_eqs s \<union> { x } = fv_eqs ((Var x, t) # s)"
+          by (simp add: fv_eq_def)
+        ultimately show ?thesis
+          by auto
       qed
     next                           
-      case 2
-      then show ?thesis proof-
-        from 2 unsi(3) have t:
-          " t = Var x"
-          by fastforce
-        moreover from unsi(3) have
-          "unify s = Some \<sigma>"
-          by (simp add: calculation)
-        ultimately show ?thesis using unsi(2) 2 by auto 
-      qed
-    qed
-  qed
-next
-  case (3 v va x s)
-  then show ?case by(simp add: fv_swap)
-next
-  case (4 f0 l0 f1 l1 s)
-  then show ?case proof-
-    from 4(2) have
-      "f0 = f1 \<and> length l0 = length l1"
-      by (metis Fun option.discI)
-    moreover from 4(2) have
-      "unify (term_zip l0 l1 @ s) = Some \<sigma>"
-      by (simp add: calculation)
-    ultimately show ?thesis using 4(1) by(simp only: fv_fun)
-  qed
-qed
-
-lemma unify_svran_fv: "unify eqs = Some \<sigma> \<Longrightarrow> svran \<sigma> \<subseteq> fv_eqs eqs"
-proof(induction rule: unify.induct)
-  case 1
-  then show ?case by simp
-next
-  case unsi: (2 x t s)
-  then show ?case proof-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
-      then show ?thesis sorry
-    next
       case 2
       then show ?thesis proof-
         from 2 unsi(3) have t:
@@ -863,22 +989,69 @@ next
           by(rule exE)
         from this opt have sig:
           "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
-        moreover from unsi.IH(1) 1 sigp_unify have IS:
+        from unsi.IH(1) 1 sigp_unify have IS:
           "sdom \<sigma>p \<inter> svran \<sigma>p = {}"
           by simp
-        moreover from sig 1 have
-          "sdom \<sigma> \<subseteq> sdom \<sigma>p \<union> { x }" 
-          by (metis Un_insert_right calculation(2) fv.simps(1) 
-              sdom_scomp sdom_single_non_trivial singletonI sup_inf_absorb)
-        moreover from sig 1 have
-          "svran \<sigma> \<subseteq> svran \<sigma>p \<union> fv t"
-          by (metis fv.simps(1) insertCI svran_scomp svran_single_non_trivial) 
-        ultimately have
-          "sdom \<sigma> \<inter> svran \<sigma> \<subseteq> (sdom \<sigma>p \<union> {x}) \<inter> (svran \<sigma>p \<union> fv t)"
+        from sig 1 sigp_unify have
+          "svran \<sigma>p \<subseteq> fv_eqs (Var(x := t) \<cdot>s s)"
+          using unify_svran_fv by blast
+        from this 1 have x_svran_sigp: 
+          "x \<notin> svran \<sigma>p"
+          by (metis (no_types, lifting) Diff_iff Diff_insert_absorb Un_Diff fv.simps(1) lemma1_eqs 
+              sdom_single_non_trivial singletonI subsetD svran_single_non_trivial)
+        have 
+          "\<not> (\<exists> z . z \<in> sdom \<sigma> \<and> z \<in> svran \<sigma>)"
+        proof(rule notI)
+          assume "\<exists>z. z \<in> sdom \<sigma> \<and> z \<in> svran \<sigma>"
+          then obtain z where z_sdom:
+            "z \<in> sdom \<sigma>" and z_svran: "z \<in> svran \<sigma>"
+            by blast
+          from 1 z_sdom sig have
+            "z \<in> sdom \<sigma>p \<union> { x }"
+            by (metis fv.simps(1) insertI1 insert_absorb insert_subset sdom_scomp sdom_single_non_trivial)
+          moreover from 1 z_svran sig have
+            "z \<in> svran \<sigma>p \<union> fv t"
+            by (metis fv.simps(1) insertI1 insert_absorb insert_subset svran_scomp svran_single_non_trivial)
+          ultimately have z_sdom_sigp:
+            "z \<in> sdom \<sigma>p"
+            using x_svran_sigp 1 by blast
+          from svran_def z_svran obtain y where 
+            y_sdom_sig: "y \<in> sdom \<sigma>" and z_fv_sig_y: "z \<in> fv (\<sigma> y)"
+            by fast
+          then show False proof(cases "x = y")
+            case True
+            then show ?thesis proof-
+              from True sig have 
+                "\<sigma> y = \<sigma>p \<cdot> t"
+                by (simp add: scomp_sapply)
+              from this z_fv_sig_y have
+                "z \<in> fv (\<sigma>p \<cdot> t)"
+                by simp
+              from this lemma1 have
+                "z \<in> (fv t) - sdom \<sigma>p \<union> svran \<sigma>p"
+                by fast
+              from this z_sdom_sigp have
+                "z \<in> svran \<sigma>p"
+                by simp
+              from this IS z_sdom_sigp show ?thesis
+                by auto
+            qed
+          next
+            case False
+            then show ?thesis proof-
+              from False sig have
+                "\<sigma> y = \<sigma>p y"
+                by (simp add: scomp_sapply)
+              from this z_fv_sig_y z_sdom_sigp have
+                "z \<in> svran \<sigma>p"
+                by (metis Diff_iff Un_commute Un_iff sapply.simps(1) svapply_svdom_svran)
+              from this IS z_sdom_sigp show ?thesis
+                by auto
+            qed
+          qed
+        qed
+        then show ?thesis
           by auto
-        from IS 1 have
-          "(sdom \<sigma>p \<union> {x}) \<inter> (svran \<sigma>p \<union> fv t) = {}" apply(simp)
-          sorry
         qed
     next
       case 2
@@ -934,13 +1107,11 @@ text \<open> (b) \<close>
 lemma wf_term_sapply:
   "\<lbrakk> wf_term arity t; wf_subst arity \<sigma> \<rbrakk> \<Longrightarrow> wf_term arity (\<sigma> \<cdot> t)"
   apply(induction t)
-   apply(simp_all add: wf_subst_def)
-  done
+  by(simp_all add: wf_subst_def)
 
 lemma wf_subst_scomp:
   "\<lbrakk> wf_subst arity \<sigma>; wf_subst arity \<tau> \<rbrakk> \<Longrightarrow> wf_subst arity (\<sigma> \<circ>s \<tau>)"
-  apply(simp add: wf_subst_def scomp_def wf_term_sapply)
-  done
+  by(simp add: wf_subst_def scomp_def wf_term_sapply)
 
 lemma wf_zip: "\<lbrakk>length l0 = length l1; 
     \<forall>t\<in>set l0. wf_term arity t; 
