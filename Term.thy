@@ -96,6 +96,9 @@ definition msg_scomp :: "msg_subst \<Rightarrow> msg_subst \<Rightarrow> msg_sub
 definition msg_fv_eq :: "msg_equation \<Rightarrow> string set" where
   "msg_fv_eq eq = (msg_fv (fst eq) \<union> msg_fv (snd eq))"
 
+definition msg_fv_list :: "msg list \<Rightarrow> string set" where
+  "msg_fv_list mlist = \<Union>(set (map msg_fv mlist))"
+
 definition msg_fv_eqs :: "msg_equations \<Rightarrow> string set" where
   "msg_fv_eqs eqs = \<Union>(set (map msg_fv_eq eqs))"
 
@@ -137,7 +140,8 @@ lemma msg_sdom_scomp: "msg_sdom (\<sigma> \<circ>m \<tau>) \<subseteq> msg_sdom 
   by (auto simp add: msg_scomp_def sdom_def scomp_sapply)
 
 lemma embed_msg_of_term_comp: "Term.embed \<circ> (msg_of_term \<circ> (Term.embed \<circ> \<sigma>) \<circ>s (Term.embed \<circ> \<tau>)) = (Term.embed \<circ> \<sigma>) \<circ>s (Term.embed \<circ> \<tau>)"
-  sorry
+  unfolding comp_def scomp_def
+  by (simp add: wf_subst_def wf_term_sapply)
 
 lemma msg_svran_scomp: "msg_svran (\<sigma> \<circ>m \<tau>) \<subseteq> msg_svran \<sigma> \<union> msg_svran \<tau>"
   using svran_scomp[of "(embed \<circ> \<sigma>)" "(embed \<circ> \<tau>)"]
@@ -189,14 +193,7 @@ definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
 definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
   "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (\<lambda>eq. map_prod embed embed eq) eqs)"
 
-lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<tau>'. (\<tau> = \<tau>' \<circ>m \<sigma>)))))"
-  apply(simp only: msg_is_mgu_def)
-  apply(simp only: is_mgu_def)
-  (* apply(simp only: unifies_eq_def)
-  apply(simp only: msg_unifiess_alt)
-  apply (rule iffI)
-   apply(intro iffI impI conjI; clarsimp)
-    apply fastforce *)
+lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))"
   sorry
 
 lemma msg_unify_svran_fv: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_svran \<sigma> \<subseteq> msg_fv_eqs eqs"

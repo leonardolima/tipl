@@ -74,20 +74,22 @@ function search :: "constraint_system \<Rightarrow> (constraint_system \<times> 
                                             Some(cs'', \<tau> \<circ>m \<sigma>))) rer_res))"
   by pat_completeness auto
 termination
+  (* Here we use the well-foundedness result of the rer relation*)
   sorry
 
 subsection \<open>(c)\<close>
 
-value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
-                [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1'')))),
-                [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0'')),
-                [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))]"
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'', ''Z0''])) 
+       (search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
+                 [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1'')))),
+                 [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0'')),
+                 [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))])"
 
-value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
+(* value "search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
               [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''NA1'') (Constant ''a''))),
               [PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Variable ''A0'') (Pair (Constant ''na0'') (Variable ''NB0''))),
               [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Constant ''nb1'')),
-              [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))]"
+              [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))]" *)
 
 section \<open>Assignment 9\<close>
 

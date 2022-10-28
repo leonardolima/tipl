@@ -85,16 +85,27 @@ definition c_sapply :: "msg_subst \<Rightarrow> constraint \<Rightarrow> constra
 definition cs_sapply :: "msg_subst \<Rightarrow> constraint_system \<Rightarrow> constraint_system" where
   "cs_sapply \<sigma> cs = map (c_sapply \<sigma>) cs"
 
+lemma c_fv_sapply_sdom_svran: "c_fv (c_sapply \<sigma> c) \<subseteq> (c_fv c - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+  using msg_fv_sapply_sdom_svran[of \<sigma> _]
+  unfolding c_fv_def cs_sapply_def c_sapply_def
+  by (clarsimp; blast+)
+
+lemma cs_fv_sapply_sdom_svran: "cs_fv (cs_sapply \<sigma> cs) \<subseteq> (cs_fv cs - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+  using c_fv_sapply_sdom_svran[of \<sigma> _]
+  unfolding cs_fv_def cs_sapply_def c_sapply_def
+  by (clarsimp; blast+)
+
 definition sol :: "constraint_system \<Rightarrow> msg_subst set" where
   "sol cs = { \<sigma>. \<forall>c \<in> (set cs). ((set (map (msg_sapply \<sigma>) (c_M c))) \<union> (set (map (msg_sapply \<sigma>) (c_A c)))) \<turnstile> (msg_sapply \<sigma>) (c_t c) }"
 
 subsection \<open>(b)\<close>
 
 lemma sol_inter: "sol (cs1 @ cs2) = sol(cs1) \<inter> sol(cs2)"
-  by (auto simp add: sol_def)
+  unfolding sol_def by auto
 
 lemma sol_scomp: "\<tau> \<in> sol(cs_sapply \<sigma> cs) \<Longrightarrow> (\<tau> \<circ>m \<sigma>) \<in> sol(cs)"
-  by (simp add: msg_scomp_distrib c_sapply_def cs_sapply_def sol_def image_image)
+  unfolding c_sapply_def cs_sapply_def
+  by (simp add: msg_scomp_distrib sol_def image_image)
   
 subsection \<open>(c)\<close>
 
@@ -153,78 +164,71 @@ proof(cases rule: rer1.cases)
   then have "set (map ((\<cdot>m) \<tau>) (map ((\<cdot>m) \<sigma>) (M @ A))) \<turnstile> (\<tau> \<cdot>m (\<sigma> \<cdot>m t))"
     using Unif Ax by auto
   then show ?thesis 
-    using Unif sol_def msg_scomp_distrib
-    by simp
+    using Unif msg_scomp_distrib
+    unfolding sol_def by simp
 next
   case (CompHash M A t)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms CompHash
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   then have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m (Hash t))" 
     using deduce.CompHash[of "set (map ((\<cdot>m) \<tau>) (M @ A))" "\<tau> \<cdot>m t"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   then show ?thesis
     using CompHash
-    unfolding sol_def
-    by simp
+    unfolding sol_def by simp
 next
   case (CompPair M A t1 t2)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t1)"
     using assms CompPair
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   moreover have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t2)"
     using assms CompPair
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m (Pair t1 t2))" 
     using deduce.CompPair[of "set (map ((\<cdot>m) \<tau>) (M @ A))" "\<tau> \<cdot>m t1" "\<tau> \<cdot>m t2"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   then show ?thesis
-    using CompPair
-    unfolding sol_def
-    by simp
+    using CompPair unfolding sol_def by simp
 next
   case (CompSymEncrypt M A k t)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms CompSymEncrypt
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   moreover have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m k)"
     using assms CompSymEncrypt
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m (SymEncrypt k t))" 
     using deduce.CompSymEncrypt[of "set (map ((\<cdot>m) \<tau>) (M @ A))" "\<tau> \<cdot>m k" "\<tau> \<cdot>m t"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   then show ?thesis
-    using CompSymEncrypt
-    unfolding sol_def
-    by simp
+    using CompSymEncrypt unfolding sol_def by simp
 next
   case (CompPubEncrypt M A k t)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms CompPubEncrypt
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   moreover have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m k)"
     using assms CompPubEncrypt
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m (PubKeyEncrypt k t))" 
     using deduce.CompPubKeyEncrypt[of "set (map ((\<cdot>m) \<tau>) (M @ A))" "\<tau> \<cdot>m k" "\<tau> \<cdot>m t"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   then show ?thesis
-    using CompPubEncrypt
-    unfolding sol_def
-    by simp
+    using CompPubEncrypt unfolding sol_def by simp
 next
   case (CompSig M A t)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms CompSig
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   moreover have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m \<iota>)"
     using assms CompSig
     unfolding sol_def
@@ -237,16 +241,16 @@ next
     unfolding sol_def
     by simp
 next
-  (* we apply cut twice in this case *)
+  (* Reminder: here we need to apply cut twice *)
   case (Proj M1 u v M2 A t)
   have ax_app: "set (map ((\<cdot>m) \<tau>) (M1 @ Pair u v # M2 @ A)) \<turnstile> (\<tau> \<cdot>m (Pair u v))"
-    by(rule Ax; simp)
+    by (rule Ax; simp)
   have tau_u_deriv: "set (map ((\<cdot>m) \<tau>) (M1 @ Pair u v # M2 @ A)) \<turnstile> (\<tau> \<cdot>m u)"
     using ax_app deduce.ProjL[of _ "(\<tau> \<cdot>m u)" "(\<tau> \<cdot>m v)"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   have tau_v_deriv: "set (map ((\<cdot>m) \<tau>) (M1 @ Pair u v # M2 @ A)) \<turnstile> (\<tau> \<cdot>m v)"
     using ax_app deduce.ProjR[of _ "(\<tau> \<cdot>m u)" "(\<tau> \<cdot>m v)"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   have u_deriv: "set (M1 @ v # Pair u v # M2 @ A) \<turnstile> u"
     using deduce.ProjL[of _ u v] ax_app
     by (simp; meson Ax insertCI)
@@ -256,7 +260,7 @@ next
   have tau_t_1: "set (map ((\<cdot>m) \<tau>) (M1 @ u # v # Pair u v # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms Proj
     unfolding sol_def
-    by(simp add: Un_assoc image_Un insert_commute)
+    by (simp add: Un_assoc image_Un insert_commute)
   then have "set (map ((\<cdot>m) \<tau>) (M1 @ v # Pair u v # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms Proj tau_u_deriv deduce_cut u_deriv'
     by auto
@@ -272,39 +276,39 @@ next
   have "set (map ((\<cdot>m) \<tau>) (M1 @ SymEncrypt k u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m k)"
     using assms Sdec
     unfolding sol_def
-    by(simp add: Un_assoc image_Un)
+    by (simp add: Un_assoc image_Un)
   moreover have "set (map ((\<cdot>m) \<tau>) (M1 @ SymEncrypt k u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m (SymEncrypt k u))"
-    by(rule Ax; simp)
+    by (rule Ax; simp)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M1 @ SymEncrypt k u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m u)"
     using deduce.Sdec[of "set (map ((\<cdot>m) \<tau>) (M1 @ SymEncrypt k u # M2 @ A))" "(\<tau> \<cdot>m k)" "(\<tau> \<cdot>m u)"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   moreover have "set (map ((\<cdot>m) \<tau>) (M1 @ u # SymEncrypt k u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms Sdec
     unfolding sol_def
-    by(simp add: Un_assoc image_Un insert_commute)
+    by (simp add: Un_assoc image_Un insert_commute)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M1 @ SymEncrypt k u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
-    by(simp add: deduce_cut)
+    by (simp add: deduce_cut)
   then show ?thesis
     using assms Sdec
     unfolding sol_def
-    by(simp add: Un_assoc)
+    by (simp add: Un_assoc)
 next
   case (Adec M1 u M2 A t)
   have "set (map ((\<cdot>m) \<tau>) (M1 @ PubKeyEncrypt \<iota> u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m (PubKeyEncrypt \<iota> u))"
-    by(rule Ax; simp)
+    by (rule Ax; simp)
   then have "set (map ((\<cdot>m) \<tau>) (M1 @ PubKeyEncrypt \<iota> u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m u)"
     using deduce.Adec[of "set (map ((\<cdot>m) \<tau>) (M1 @ PubKeyEncrypt \<iota> u # M2 @ A))" "(\<tau> \<cdot>m u)"]
-    by(simp add: msg_sapply_def)
+    by (simp add: msg_sapply_def)
   moreover have "set (map ((\<cdot>m) \<tau>) (M1 @ u # PubKeyEncrypt \<iota> u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
     using assms Adec
     unfolding sol_def
-    by(simp add: Un_assoc image_Un insert_commute)
+    by (simp add: Un_assoc image_Un insert_commute)
   ultimately have "set (map ((\<cdot>m) \<tau>) (M1 @ PubKeyEncrypt \<iota> u # M2 @ A)) \<turnstile> (\<tau> \<cdot>m t)"
-    by(simp add: deduce_cut)
+    by (simp add: deduce_cut)
   then show ?thesis
     using assms Adec
     unfolding sol_def
-    by(simp add: Un_assoc)
+    by (simp add: Un_assoc)
 next
   case (Ksub M1 x u M2 A t)
   then show ?thesis
@@ -463,18 +467,21 @@ proof(cases rule: rer1.cases)
     by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
 next
   case (Ksub M1 x u M2 A t)
-  have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs @ cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
-    using Ksub msg_fv_sapply_sdom_svran[of \<sigma> _] 
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def   
-    by (auto; blast; blast)
-  moreover have "msg_sdom \<sigma> = {x}"
-    using Ksub msg_sdom_single_non_trivial[of \<iota> x] by simp
-  moreover have "msg_svran \<sigma> = msg_fv \<iota>"
-    using Ksub msg_svran_single_non_trivial[of \<iota> x] by simp
-  ultimately show ?thesis
-    using Ksub
-    unfolding cs_fv_def cs_sapply_def c_sapply_def 
+  have fv_subseteq: "cs_fv(cs) \<subseteq> c_fv(c)"
     sorry
+  have sdom: "msg_sdom \<sigma> = {x}"
+    using Ksub msg_sdom_single_non_trivial[of \<iota> x] by simp
+  moreover have svran: "msg_svran \<sigma> = msg_fv \<iota>"
+    using Ksub msg_svran_single_non_trivial[of \<iota> x] by simp
+  ultimately have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs @ cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+    using Ksub msg_fv_sapply_sdom_svran[of \<sigma> _] 
+    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
+    by (clarsimp; blast+)
+  also have "... \<subseteq> cs_fv(c # cs')"
+    using Ksub(2) sdom svran fv_subseteq 
+    unfolding cs_fv_def msg_fv_def
+    by auto
+  finally show ?thesis by simp
 qed (auto simp add: cs_fv_def c_fv_def cs_sapply_id msg_fv_def)
 
 lemma lemma_11: 
@@ -485,7 +492,7 @@ lemma lemma_11:
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
   obtain x where "x \<in> msg_sdom(\<sigma>)"
-    using assms msg_var_ineq
+    using assms msg_not_var
     unfolding msg_sdom_def sdom_def
     by (simp; blast)
   moreover have "msg_sdom(\<sigma>) \<subseteq> c_fv(c)"
@@ -668,13 +675,10 @@ next
     using Ksub by simp
 qed
 
-abbreviation "rel \<equiv> measures [\<eta>_1, \<eta>_2]"
-
-lemma "cs \<leadsto>[\<sigma>] cs' \<longrightarrow> (cs', cs) \<in> rel"
-  apply(rule impI)
+lemma foo: "cs \<leadsto>[\<sigma>] cs' \<Longrightarrow> (cs', cs) \<in> measures [\<eta>_1, \<eta>_2]"
   sorry
   
-theorem wf_red: "wf (rel)"
-  by simp
+theorem wf_red: "wf ({(cs, cs'). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'})"
+  sorry
 
 end
