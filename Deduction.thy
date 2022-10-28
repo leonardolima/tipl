@@ -668,7 +668,13 @@ next
     using Ksub by simp
 qed
 
-theorem wf_red: "wf ({ (cs, cs'). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs' })"
+abbreviation "rel \<equiv> measures [\<eta>_1, \<eta>_2]"
+
+lemma "cs \<leadsto>[\<sigma>] cs' \<longrightarrow> (cs', cs) \<in> rel"
+  apply(rule impI)
   sorry
+  
+theorem wf_red: "wf (rel)"
+  by simp
 
 end
