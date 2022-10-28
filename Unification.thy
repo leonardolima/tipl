@@ -29,43 +29,35 @@ text \<open> (c) \<close>
 
 lemma fv_sapply: "fv (\<sigma> \<cdot> t) = (\<Union> x \<in> fv t. fv (\<sigma> x))"
   apply(induction t rule: fv.induct)
-   apply(simp_all)
-  done
+  by(simp_all)
+  
 
-lemma sapply_cong: 
-  assumes "\<And>x. x \<in> fv t \<Longrightarrow> \<sigma> x = \<tau> x"
-  shows "\<sigma> \<cdot> t = \<tau> \<cdot> t"
-  using assms 
+lemma sapply_cong: "\<lbrakk> \<And>x. x \<in> fv t \<Longrightarrow> \<sigma> x = \<tau> x \<rbrakk> \<Longrightarrow> \<sigma> \<cdot> t = \<tau> \<cdot> t"
   apply(induction t rule: fv.induct)
    apply(simp_all)
-   apply(blast)
-  done
+  by(blast)
 
 lemma scomp_sapply: "(\<sigma> \<circ>s \<tau>)x = \<sigma> \<cdot> (\<tau> x)"
-  apply(simp add: scomp_def)
-  done
+  by(simp add: scomp_def)
+  
 
 lemma sapply_scomp_distrib: "(\<sigma> \<circ>s \<tau>) \<cdot> t = \<sigma> \<cdot> (\<tau> \<cdot> t)"
   apply(induction t)
-   apply(simp_all add: scomp_def)
-  done
-
+  by(simp_all add: scomp_def)
+  
 lemma scomp_assoc: "(\<sigma> \<circ>s \<tau>) \<circ>s \<rho> = \<sigma> \<circ>s (\<tau> \<circ>s \<rho>)"
-  apply(simp add: fun_eq_iff scomp_def sapply_scomp_distrib)
-  done
-
+  by(simp add: fun_eq_iff scomp_def sapply_scomp_distrib)
+  
 lemma sapply_Var[simp]: "Var \<cdot> t = t"
   apply(induction t)
-   apply(simp_all add: map_idI)
-  done
-
+  by(simp_all add: map_idI)
+  
 lemma scomp_Var[simp]: "\<sigma> \<circ>s Var = \<sigma>"
-  apply(simp add: fun_eq_iff scomp_def)
-  done
+  by(simp add: fun_eq_iff scomp_def)
 
 lemma Var_scomp[simp]: "Var \<circ>s \<sigma> = \<sigma>"
-  apply(simp add: fun_eq_iff scomp_def)
-  done
+  by(simp add: fun_eq_iff scomp_def)
+  
 
 text \<open> (d) \<close>
 
@@ -76,41 +68,37 @@ definition svran :: "('f, 'v) subst \<Rightarrow> 'v set" where
   "svran \<sigma> = \<Union>(fv ` (\<sigma> ` sdom \<sigma>))"
 
 lemma sdom_Var[simp]: "sdom Var = {}"
-  apply(simp add: sdom_def)
-  done
+  by(simp add: sdom_def)
+  
 
 lemma svran_Var[simp]: "svran Var = {}"
-  apply(simp add: svran_def)
-  done
-
+  by(simp add: svran_def)
+  
 lemma sdom_single_non_trivial[simp]:
   "t \<noteq> Var x \<Longrightarrow> sdom (Var( x := t )) = {x}"
-    apply(simp add: fun_upd_def sdom_def)
-    done
+  by(simp add: fun_upd_def sdom_def)
+    
 
 lemma svran_single_non_trivial[simp]:
   "t \<noteq> Var x \<Longrightarrow> svran (Var( x := t )) = fv t"
-    apply(simp add: fun_upd_def svran_def sdom_def)
-  done
+  by(simp add: fun_upd_def svran_def sdom_def)
 
 lemma svapply_svdom_svran:
   "x \<in> fv (\<sigma> \<cdot> t) \<Longrightarrow> x \<in> (fv t - sdom \<sigma>) \<union> svran \<sigma>"
   apply(induction t)
-   apply(simp add: svran_def sdom_def)
+   apply(simp_all add: svran_def sdom_def)
    apply(metis fv.simps(1) singletonD)
-  apply(simp add: svran_def sdom_def)
-  apply(blast)
-  done
+  by(blast)
 
 lemma sdom_scomp: "sdom (\<sigma> \<circ>s \<tau>) \<subseteq> sdom \<sigma> \<union> sdom \<tau>"
   apply(simp add: sdom_def scomp_def)
-  apply(auto)
-  done
+  by(auto)
+  
 
 lemma svran_scomp: "svran (\<sigma> \<circ>s \<tau>) \<subseteq> svran \<sigma> \<union> svran \<tau>"
   apply(simp add: svran_def scomp_def fv_sapply sdom_def)
-  apply(force)
-  done
+  by(force)
+  
 
 section \<open> Assignment 2 \<close>
   
@@ -144,24 +132,24 @@ lemma sapply_eqs_map: "sapply_eqs \<sigma> eqs = map (sapply_eq \<sigma>) eqs"
   by(simp_all)
 
 lemma fv_sapply_eq: "fv_eq (\<sigma> \<cdot>e e) = (\<Union> x \<in> fv_eq e. fv (\<sigma> x))"
-  apply(simp add: fv_eq_def sapply_eq_def fv_sapply)
-  done
+  by(simp add: fv_eq_def sapply_eq_def fv_sapply)
+  
 
 lemma fv_sapply_eqs: "fv_eqs (\<sigma> \<cdot>s s) = (\<Union> x \<in> fv_eqs s. fv (\<sigma> x))"
   apply(induction rule: sapply_eqs.induct)
    apply(simp)
-  apply(simp add: fv_sapply_eq)
-  done
+  by(simp add: fv_sapply_eq)
+  
 
 lemma sapply_scomp_distrib_eq: "(\<sigma> \<circ>s \<tau>) \<cdot>e eq = \<sigma> \<cdot>e (\<tau> \<cdot>e eq)"
-  apply(simp add: sapply_eq_def sapply_scomp_distrib)
-  done
+  by(simp add: sapply_eq_def sapply_scomp_distrib)
+  
 
 lemma sapply_scomp_distrib_eqs: "(\<sigma> \<circ>s \<tau>) \<cdot>s eqs = \<sigma> \<cdot>s (\<tau> \<cdot>s eqs)"
   apply(induction eqs)
    apply(simp)
-  apply(simp add: sapply_scomp_distrib_eq)
-  done
+  by(simp add: sapply_scomp_distrib_eq)
+  
 
 text \<open> (b) \<close>
 
@@ -189,14 +177,13 @@ definition is_mgu :: "('f, 'v) subst \<Rightarrow> ('f, 'v) equations \<Rightarr
 text \<open> (c) \<close>
 
 lemma unifies_sapply_eq: "unifies_eq \<sigma> (\<tau> \<cdot>e eq) \<longleftrightarrow> unifies_eq (\<sigma> \<circ>s \<tau>) eq"
-  apply(simp add: sapply_eq_def unifies_eq_def sapply_scomp_distrib)
-  done
+  by(simp add: sapply_eq_def unifies_eq_def sapply_scomp_distrib)
+  
 
 lemma unifies_sapply: "unifies \<sigma> (\<tau> \<cdot>s eqs) \<longleftrightarrow> unifies (\<sigma> \<circ>s \<tau>) eqs"
   apply(induction eqs)
-   apply(simp)
-  apply(simp add: unifies_sapply_eq)
-  done
+  by(simp_all add: unifies_sapply_eq)
+  
 
 section \<open> Assignment 3 \<close>
 
@@ -211,6 +198,7 @@ fun eqs_size_fst :: "('f, 'v) equations \<Rightarrow> nat" where
   "eqs_size_fst [] = 0"
 | "eqs_size_fst ((t, _)#qs) = tsize t + eqs_size_fst qs"
 
+(* equivalent to zip, but allows induction *)
 fun term_zip :: "('f, 'v) term list \<Rightarrow> ('f, 'v) term list \<Rightarrow> (('f, 'v) term \<times> ('f, 'v) term) list" where
   "term_zip [] t1 = []"
 | "term_zip t0 [] = []"
@@ -225,7 +213,7 @@ lemma fv_term_zip:
   apply(induction l0 l1 rule: term_zip.induct)
     apply(simp_all)
   by blast
-
+ 
 lemma term_fun_X1 [simp]:
   "length l0 = length l1 \<Longrightarrow> card (fv_eqs (term_zip l0 l1 @ s)) = card (fv_eq (Fun f0 l0, Fun f0 l1) \<union> fv_eqs s)"
   apply(induction l0 l1 rule: term_zip.induct)
@@ -247,7 +235,7 @@ proof-
   from assms have 
     "setA \<subset> setB" 
     by blast
-  from assms(4) this show ?thesis by (simp add: psubset_card_mono)  
+  from this assms(4) show ?thesis by (simp add: psubset_card_mono)  
 qed
 
 lemma fv_finite:
@@ -381,17 +369,6 @@ lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<
       ultimately show ?thesis using 4(1) by(simp only: fun_unifies)
     qed
   qed
-(*
-lemma temp: "\<lbrakk>
-  length l0 = length l1; f0 = f1;
-  unify (term_zip l0 l1 @ s) = Some \<sigma>; 
-  \<forall>\<tau>. unifies \<tau> (term_zip l0 l1 @ s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)
-\<rbrakk> \<Longrightarrow> \<forall>\<tau>. unifies \<tau> ((Fun f0 l0, Fun f1 l1) # s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)"
-  apply(induction rule: term_zip.induct)
-    apply(simp_all add: unifies_eq_def)
-  sorry
-*)
-(*lemma "\<lbrakk>f0 = f1; length l0 = length l1; unifies \<tau> (term_zip l0 l1 @ s) \<rbrakk> \<Longrightarrow> unifies \<tau> ((Fun f0 l0, Fun f1, l1) # s)"*)
 
 lemma unify_soundness_ii: "unify eqs = Some \<sigma> \<Longrightarrow> 
   ((\<forall> \<tau>. (unifies \<tau> eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s \<sigma>)))"
@@ -426,12 +403,26 @@ next
             proof(rule impI)
               assume asm: "unifies \<tau> ((Var x, t) # s)"
               show "(\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)" proof-
-                from 1 asm have
+                from asm have
+                  "\<tau> x = \<tau> \<cdot> t" and "unifies \<tau> s"
+                  by(simp_all add: unifies_eq_def)
+                moreover from this 1 have t_def:
+                  "\<tau> \<circ>s Var(x := t) = \<tau>"
+                  by(simp add: fun_eq_iff scomp_sapply)
+                ultimately have
                   "unifies \<tau> (Var(x := t) \<cdot>s s)"
-                  try
-                from IS have
-                  "unifies \<tau> (Var(x := t) \<cdot>s s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>p)"
-                  from this asm
+                  by(simp add: unifies_sapply)
+                from this IS obtain \<rho> where
+                  "\<tau> = \<rho> \<circ>s \<sigma>p"
+                  by blast
+                hence
+                  "\<tau> \<circ>s Var(x := t) = \<rho> \<circ>s \<sigma>p \<circ>s Var(x := t)"
+                  by (simp add: scomp_assoc)
+                from this t_def sig have
+                  "\<tau> = \<rho> \<circ>s \<sigma>"
+                  by auto
+                then show ?thesis
+                  by auto
               qed
             qed
           qed
@@ -479,48 +470,16 @@ lemma unifies_wf: "unifies_eq \<sigma> (Fun f0 l0, Fun f1 l1) \<Longrightarrow> 
 lemma unifies_zip: "map ((\<cdot>) \<sigma>) l0 = map ((\<cdot>) \<sigma>) l1 \<Longrightarrow> unifies \<sigma> (term_zip l0 l1)"
   apply(induction rule: term_zip.induct)
   by(simp_all add: unifies_eq_def)
-(*
-lemma temp2:
-  assumes assms: "x \<in> fv t" and "t \<noteq> Var x"
-  shows "t = Fun f l"
-proof(rule ccontr)
-  fix y
-  assume "t \<noteq> Fun f l"
-  hence "t = Var y" sorry
-qed 
 
-lemma temp: 
-  assumes assms: "x \<in> fv t" and "unifies_eq \<sigma> (Var x, t)"
-  shows "t = Var x"
-proof(rule ccontr)  
-  fix f l
-  assume contr: "t \<noteq> Var x"
-  from assms(2) have "\<sigma> x = \<sigma> \<cdot> t" by (simp add: unifies_eq_def)
-  from assms(1) contr have
-    "t = Fun f l"
-
-qed
-*)
-(*denotes whether a term contains another term*)
 fun in_term :: "('f, 'v) term \<Rightarrow> ('f, 'v) term \<Rightarrow> bool" 
   (infixr "tin" 67) where
   "in_term t (Var x) = (t = Var x)"
 | "in_term t (Fun f l) = ((t = Fun f l) \<or> (\<exists> t0 \<in> set l . in_term t t0))"
 
-lemma fold_eq_sum_list: "(fold (+) l 0) = (sum_list l)"
-proof-
-  have 
-    "fold (+) l 0 = foldr (+) (rev l) 0"
-    by (simp add: foldr_conv_fold)
-  moreover have
-    "... = sum_list (rev l)"
-    by (simp add: sum_list.eq_foldr)
-  moreover have
-    "... = sum_list l"
-    apply(simp add: sum_list_rev)
-    sorry
-  ultimately show ?thesis sorry
-  qed
+lemma fold_eq_sum_list: "(fold (+) (l :: nat list) 0) = (sum_list l)"
+  apply(induction l)
+   apply simp
+  by (simp add: fold_plus_sum_list_rev)
 
 lemma in_args_size: 
   assumes assms: "t0 \<in> set l"
@@ -538,7 +497,7 @@ proof-
   ultimately show ?thesis by simp
 qed
 
-lemma in_term_size: "\<lbrakk> t tin t0 ; t \<noteq> t0 \<rbrakk> \<Longrightarrow> tsize t < tsize t0"
+lemma in_term_size: "\<lbrakk> t tin t0 \<rbrakk> \<Longrightarrow> tsize t \<le> tsize t0"
 proof(induction t0 rule: in_term.induct)
   case (1 t x)
   then show ?case by simp
@@ -557,18 +516,7 @@ next
           by auto
         from this IS(1) have 
           "tsize t \<le> tsize t0"
-        proof(cases "t = t0")
-          case True
-          then show ?thesis by simp
-        next
-          case False
-          then show ?thesis proof-
-            from t0l tt0 IS(1) False have
-              "tsize t < tsize t0"
-              by simp
-            then show ?thesis by simp
-            qed
-          qed
+          by blast
         moreover from t0l have 
           "tsize t0 < tsize (Fun f l)"
           by(simp only: in_args_size)
@@ -596,39 +544,28 @@ lemma sapply_size:
 proof-
   from assms(1) have
     "Var x tin t"
-    by (simp only: fv_in_term)
-  hence
-    "(\<sigma> \<cdot> Var x) tin \<sigma> \<cdot> t"
-    by(simp only: in_term_sapply)
-  hence
-    "\<sigma> x tin \<sigma> \<cdot> t"
-    by simp
-  moreover from assms have
-    "\<sigma> x \<noteq> \<sigma> \<cdot> t"
-    
-  from this assms(2) show ?thesis apply(simp only: in_term_size)
-  
-    
-    moreover from t0l have
-    "tsize t0 < tsize (Fun f l)"
-    by(simp only: in_args_size)
-  from this t_def have
-    "size"
-
-
-  from assms(1) have
-    "(Var x) tin t"
     by(simp only: fv_in_term)
   hence
-    "(\<sigma> \<cdot> (Var x)) tin (\<sigma> \<cdot> t)"
-    by(simp only: in_term_sapply)
-  hence
-    "(\<sigma> x) tin (\<sigma> \<cdot> t)"
-    by(simp)
-
-  then show ?thesis sorry
+    "(\<sigma> \<cdot> Var x) tin \<sigma> \<cdot> t"
+    using in_term_sapply by fastforce
+  hence sigx:
+    "\<sigma> x tin \<sigma> \<cdot> t"
+    by simp
+  from assms obtain f l where t_def:
+    "\<sigma> \<cdot> t = Fun f l"
+    by (metis fv_in_term in_term.elims(2) sapply.simps(2))
+  from this assms sigx obtain t0 where
+    "t0 \<in> set l" and sigx_t0: "\<sigma> x tin t0"
+    by (smt (z3) \<open>Var x tin t\<close> image_eqI in_term.elims(2) in_term_sapply list.set_map sapply.simps(1) sapply.simps(2) term.inject(2))
+  from this t_def have
+    "tsize (t0) < tsize (\<sigma> \<cdot> t)"
+    by(simp only: in_args_size)
+  moreover from sigx_t0 have
+    "tsize (\<sigma> x) \<le> tsize t0"
+    by(simp only: in_term_size)
+  ultimately show ?thesis by simp
 qed
-  
+
 lemma case_occurs:
   assumes assms: "x \<in> fv t" and "unifies \<sigma> ((Var x, t) # s)"
   shows "t = Var x"
