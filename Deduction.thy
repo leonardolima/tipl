@@ -95,6 +95,15 @@ lemma cs_fv_sapply_sdom_svran: "cs_fv (cs_sapply \<sigma> cs) \<subseteq> (cs_fv
   unfolding cs_fv_def cs_sapply_def c_sapply_def
   by (clarsimp; blast+)
 
+lemma cs_cs'_fv: "cs_fv (cs @ cs') = cs_fv cs \<union> cs_fv cs'"
+  unfolding cs_fv_def by simp
+
+lemma c_cs'_fv: "cs_fv (c # cs') = c_fv c \<union> cs_fv cs'"
+  unfolding cs_fv_def by simp
+
+lemma c_cs_fv: "cs_fv [c] = c_fv c"
+  unfolding cs_fv_def by simp
+
 definition sol :: "constraint_system \<Rightarrow> msg_subst set" where
   "sol cs = { \<sigma>. \<forall>c \<in> (set cs). ((set (map (msg_sapply \<sigma>) (c_M c))) \<union> (set (map (msg_sapply \<sigma>) (c_A c)))) \<turnstile> (msg_sapply \<sigma>) (c_t c) }"
 
@@ -454,9 +463,7 @@ lemma lemma_10:
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
   have "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
-    using Unif msg_fv_sapply_sdom_svran[of \<sigma> _] 
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
-    by (simp; blast)
+    using cs_fv_sapply_sdom_svran[of \<sigma> cs'] by simp
   moreover have "msg_svran \<sigma> \<subseteq> c_fv c"
     using Unif msg_unify_svran_fv[of "[(t, u)]" \<sigma>]
     by (auto simp add: c_fv_def msg_fv_eqs_def msg_fv_eq_def)
@@ -467,31 +474,33 @@ proof(cases rule: rer1.cases)
     by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
 next
   case (Ksub M1 x u M2 A t)
-  have fv_subseteq: "cs_fv(cs) \<subseteq> c_fv(c)"
-    sorry
-  have sdom: "msg_sdom \<sigma> = {x}"
+  have \<sigma>_sdom: "msg_sdom \<sigma> = {x}"
     using Ksub msg_sdom_single_non_trivial[of \<iota> x] by simp
-  moreover have svran: "msg_svran \<sigma> = msg_fv \<iota>"
+  moreover have \<sigma>_svran: "msg_svran \<sigma> = msg_fv \<iota>"
     using Ksub msg_svran_single_non_trivial[of \<iota> x] by simp
+  moreover have fv_subseteq: "cs_fv(cs) \<subseteq> c_fv(c)"
+    using Ksub cs_fv_sapply_sdom_svran[of \<sigma> cs'] c_fv_sapply_sdom_svran \<sigma>_sdom \<sigma>_svran
+    unfolding msg_fv_def
+    by (simp add: cs_fv_def; fastforce)
   ultimately have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs @ cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
-    using Ksub msg_fv_sapply_sdom_svran[of \<sigma> _] 
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
-    by (clarsimp; blast+)
+    using Ksub(2) Ksub(3) cs_fv_sapply_sdom_svran[of \<sigma> cs'] c_fv_sapply_sdom_svran
+    unfolding msg_fv_def
+    by (simp add: cs_cs'_fv cs_fv_def; fastforce)
   also have "... \<subseteq> cs_fv(c # cs')"
-    using Ksub(2) sdom svran fv_subseteq 
+    using Ksub(2) \<sigma>_sdom \<sigma>_svran fv_subseteq 
     unfolding cs_fv_def msg_fv_def
     by auto
   finally show ?thesis by simp
 qed (auto simp add: cs_fv_def c_fv_def cs_sapply_id msg_fv_def)
 
 lemma lemma_11: 
-  assumes "c  \<leadsto>\<^sub>1[\<sigma>] (cs @ cs')"
+  assumes "c  \<leadsto>\<^sub>1[\<sigma>] cs"
     and "\<sigma> \<noteq> Variable"
   shows "cs_fv(cs @ (cs_sapply \<sigma> cs')) \<noteq> cs_fv(c # cs')"
   using assms
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
-  obtain x where "x \<in> msg_sdom(\<sigma>)"
+  obtain x where x_sdom: "x \<in> msg_sdom(\<sigma>)"
     using assms msg_not_var
     unfolding msg_sdom_def sdom_def
     by (simp; blast)
@@ -501,20 +510,35 @@ proof(cases rule: rer1.cases)
     by auto
   ultimately have "x \<in> cs_fv(c # cs')"
     unfolding cs_fv_def by auto
-  moreover have "cs_fv(cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom(\<sigma>)) \<union> msg_svran(\<sigma>)"
-    using Unif msg_fv_sapply_sdom_svran[of \<sigma>]
-    unfolding cs_fv_def c_fv_def cs_sapply_def
-    by simp
+  moreover have "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+    using cs_fv_sapply_sdom_svran[of \<sigma> cs'] by simp
   moreover have "msg_sdom(\<sigma>) \<inter> msg_svran(\<sigma>) = {}"
     using Unif msg_unify_sdom_svran[of "[(t, u)]" \<sigma>]
     by simp
+  (* TODO: Rewrite this proof *)
   ultimately show ?thesis
-    using Unif
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
-    by auto
+    using Unif 
+    by (metis (no_types, lifting) DiffD2 Diff_empty IntI Un_iff x_sdom self_append_conv2 subsetD)
 next
   case (Ksub M1 x u M2 A t)
-  then show ?thesis sorry
+  have c_cs: "cs = [c_sapply \<sigma> c]"
+    using Ksub by simp
+  have \<sigma>_sdom: "msg_sdom \<sigma> = {x}"
+    using Ksub msg_sdom_single_non_trivial[of \<iota> x] by simp
+  have \<sigma>_svran: "msg_svran \<sigma> = msg_fv \<iota>"
+    using Ksub msg_svran_single_non_trivial[of \<iota> x] by simp
+  have sdom_svran: "msg_sdom(\<sigma>) \<inter> msg_svran(\<sigma>) = {}"
+    using \<sigma>_sdom \<sigma>_svran unfolding msg_fv_def by simp
+  have \<sigma>_cs':  "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
+    using cs_fv_sapply_sdom_svran[of \<sigma> cs'] by simp
+  moreover have fv_subseteq: "cs_fv(cs) \<union> {x} \<subseteq> c_fv(c)"
+    using c_fv_sapply_sdom_svran[of \<sigma> "c"] \<sigma>_sdom \<sigma>_svran 
+      c_cs_fv[of "c_sapply \<sigma> c"]
+    unfolding msg_fv_def
+    sorry
+  ultimately show ?thesis 
+    using Ksub cs_cs'_fv[of cs "cs_sapply \<sigma> cs'"] c_cs'_fv[of c cs'] \<sigma>_sdom \<sigma>_svran sdom_svran \<sigma>_cs'
+    by (simp; smt (verit, best) DiffE Un_iff \<sigma>_sdom \<sigma>_svran c_cs_fv c_fv_sapply_sdom_svran insertI1 subset_Un_eq)
 qed (auto simp add: assms)
 
 lemma lemma_12:

@@ -117,7 +117,7 @@ lemma msg_sdom_var [simp]: "msg_sdom Variable = {}"
 lemma msg_svran_var [simp]: "msg_svran Variable = {}"
   by (simp add: msg_svran_def svran_def sdom_def)
 
-lemma msg_not_var: "t \<noteq> Variable x \<longrightarrow> embed t \<noteq> Var x"
+lemma msg_not_var: "t \<noteq> Variable x \<Longrightarrow> embed t \<noteq> Var x"
   using msg_of_term_embed[of t] by force
 
 lemma msg_sdom_single_non_trivial [simp]: "t \<noteq> Variable x \<Longrightarrow> msg_sdom (Variable(x:=t)) = {x}"
