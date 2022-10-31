@@ -184,8 +184,8 @@ definition msg_unifies :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> b
 
 (* remember: corresponding definition is a recursive function *)
 lemma msg_unifies_alt: "msg_unifies \<sigma> eqs = (\<forall>eq \<in> set eqs. msg_unifies_eq \<sigma> eq)"
-  unfolding msg_unifies_def msg_unifies_eq_def 
-  sorry
+  apply(simp add: msg_unifies_def Unification.unifies_forall)
+  using msg_unifies_eq_def by auto
 
 definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
   "msg_unify eqs = map_option ((\<circ>) msg_of_term) (unify (map (\<lambda>eq. map_prod embed embed eq) eqs))"
@@ -193,7 +193,15 @@ definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
 definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
   "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (\<lambda>eq. map_prod embed embed eq) eqs)"
 
+lemma temp: " (\<forall>\<tau>. (\<forall>eqa\<in>set eqs. \<tau> \<cdot> Term.embed (fst eqa) = \<tau> \<cdot> Term.embed (snd eqa)) \<longrightarrow>
+          (\<exists>\<rho>. \<tau> = \<rho> \<circ>s (Term.embed \<circ> \<sigma>))) = (\<forall>\<tau>. (\<forall>eqa\<in>set eqs.
+              (Term.embed \<circ> \<tau>) \<cdot> Term.embed (fst eqa) =
+              (Term.embed \<circ> \<tau>) \<cdot> Term.embed (snd eqa)) \<longrightarrow>
+          (\<exists>\<rho>. \<tau> = msg_of_term \<circ> (Term.embed \<circ> \<rho>) \<circ>s (Term.embed \<circ> \<sigma>)))"
+  sorry
+
 lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))"
+  apply(simp add: msg_scomp_def unifies_forall unifies_eq_def msg_is_mgu_def is_mgu_def msg_unifies_def)
   sorry
 
 lemma msg_unify_svran_fv: "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_svran \<sigma> \<subseteq> msg_fv_eqs eqs"
@@ -211,7 +219,31 @@ subsection \<open>(e)\<close>
 
 lemma msg_unify_unifies:
   "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_unifies \<sigma> MU"
-  sorry
+proof-
+  have mu_wf: 
+    "wf_eqs arity (map (map_prod Term.embed Term.embed) MU)"
+    by(simp add: wf_eqs_def wf_eq_terms_wf)
+  assume "msg_unify MU = Some \<sigma>"
+  hence
+    "\<exists>z. unify (map (map_prod Term.embed Term.embed) MU) = Some z \<and>
+        msg_of_term \<circ> z = \<sigma>"
+    by (simp add: msg_unify_def)
+  then obtain z where unify:
+    "unify (map (map_prod Term.embed Term.embed) MU) = Some z" and z_def:
+        "msg_of_term \<circ> z = \<sigma>"
+    by auto
+  from this mu_wf have
+    "wf_subst arity z"
+    by (simp only: wf_subst_unify)
+  hence
+    "z = embed \<circ> (msg_of_term \<circ> z)"
+    by(simp add: fun_eq_iff wf_subst_def)
+  moreover from unify have unifies:
+    "unifies z (map (map_prod Term.embed Term.embed) MU)"
+    by (simp only: unify_soundness_i)
+  ultimately show ?thesis using z_def
+    by (simp add: msg_unifies_def)
+qed
   
 subsection \<open>(f)\<close>
 
@@ -221,6 +253,6 @@ lemma msg_unify_mgu:
 
 lemma msg_unify_soundness:
   "msg_unify MU = Some \<sigma> \<Longrightarrow> msg_is_mgu \<sigma> MU"
-  sorry
+  using is_mgu_def msg_is_mgu_alt msg_is_mgu_def msg_unify_mgu msg_unify_unifies by blast
 
 end
