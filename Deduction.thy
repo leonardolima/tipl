@@ -758,16 +758,13 @@ lemma wf_cs_\<eta>2:
     and "cs'' = cs @ cs_sapply Variable (cs'1 @ cs'2)"
   shows "\<eta>_2 cs'' < \<eta>_2 cs'"
 proof -
-  (* have "cs_fv (cs @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
-    using assms lemma_12[of c cs "(cs'1 @ cs'2)"] by simp
-  moreover have "... = cs_fv (cs'1 @ c # cs'2)"
-      using cs_fv_perm by simp
-  ultimately have "cs_fv (cs @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
-    by simp *)
-  show ?thesis
-    (* using assms subseteq_card
-    unfolding \<eta>_1_def by simp *)
-    sorry
+  have "cs'' = cs @ (cs'1 @ cs'2)"
+    using assms cs_sapply_id[of "cs'1 @ cs'2"] by simp
+  moreover have "\<eta>_2 cs < weight c"
+    using assms lemma_12[of c cs] by simp
+  ultimately show ?thesis
+    using assms(2) subseteq_card
+    unfolding \<eta>_2_def by auto
 qed
 
 lemma wf_cs:
