@@ -735,7 +735,7 @@ lemma subseteq_card2:
 lemma cs_fv_perm: "cs_fv (c # cs'1 @ cs'2) = cs_fv (cs'1 @ c # cs'2)"
   unfolding cs_fv_def by auto
 
-lemma \<eta>_1_ineq_aux:
+lemma wf_cs_\<eta>1:
   assumes "c \<leadsto>\<^sub>1[\<sigma>] cs"
     and "cs' = cs'1 @ c # cs'2"
     and "cs'' = cs @ cs_sapply \<sigma> (cs'1 @ cs'2)"
@@ -752,154 +752,101 @@ proof -
     unfolding \<eta>_1_def by simp
 qed
 
-(* lemma \<eta>_1_ineq_id:
-  assumes "cs \<leadsto>[\<sigma>] cs'"
-    "\<sigma> = Variable"
-  shows "\<eta>_1 cs' \<le> \<eta>_1 cs"
-  using assms
-proof(cases rule: rer.cases)
-  case (Context c cs cs'1 cs'2)
-  from this(3,1,2) show ?thesis
-  proof(cases rule: rer1.cases)
-    case (Unif t u M A)
-    then have "c \<leadsto>\<^sub>1[\<sigma>] []"
-      using do_Unif[of t u M A \<sigma> c cs] by simp
-    then show ?thesis
-      using lemma_10[of c \<sigma> "[]" cs'] Context subseteq_card \<eta>_1_ineq_id_aux
-      unfolding \<eta>_1_def by auto
-  next
-    case (CompHash M A t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompPair M A t1 t2)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompSymEncrypt M A k t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompPubKeyEncrypt M A k t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompSig M A t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (Proj M1 u v M2 A t)
-    then show ?thesis
-      using lemma_10[of c \<sigma> "[]" cs'] Context subseteq_card \<eta>_1_ineq_id_aux
-      unfolding \<eta>_1_def sorry
-  next
-    case (Sdec M1 k u M2 A t)
-    then show ?thesis sorry
-  next
-    case (Adec M1 u M2 A t)
-    then show ?thesis sorry
-  next
-    case (Ksub M1 x u M2 A t)
-    then show ?thesis using Context Context(2) \<eta>_1_ineq_id_aux by blast
-    qed
+lemma wf_cs_\<eta>2:
+  assumes "c \<leadsto>\<^sub>1[Variable] cs"
+    and "cs' = cs'1 @ c # cs'2"
+    and "cs'' = cs @ cs_sapply Variable (cs'1 @ cs'2)"
+  shows "\<eta>_2 cs'' < \<eta>_2 cs'"
+proof -
+  (* have "cs_fv (cs @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
+    using assms lemma_12[of c cs "(cs'1 @ cs'2)"] by simp
+  moreover have "... = cs_fv (cs'1 @ c # cs'2)"
+      using cs_fv_perm by simp
+  ultimately have "cs_fv (cs @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
+    by simp *)
+  show ?thesis
+    (* using assms subseteq_card
+    unfolding \<eta>_1_def by simp *)
+    sorry
 qed
-
-lemma \<eta>_1_ineq_notid:
-  assumes "cs \<leadsto>[\<sigma>] cs'"
-    "\<sigma> \<noteq> Variable"
-  shows "\<eta>_1 cs' < \<eta>_1 cs"
-  using assms
-proof(cases rule: rer.cases)
-  case (Context c cs cs'1 cs'2)
-  from this(3,1,2) show ?thesis
-  proof(cases rule: rer1.cases)
-    case (Unif t u M A)
-    then have "c \<leadsto>\<^sub>1[\<sigma>] []"
-      using do_Unif[of t u M A \<sigma> c cs] by simp
-    then show ?thesis
-      using lemma_10[of c \<sigma> "[]" cs'] lemma_11[of c \<sigma> "[]" cs'] 
-        Context subseteq_card \<eta>_1_ineq_id_aux
-      unfolding \<eta>_1_def
-      apply auto
-  next
-    case (CompHash M A t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompPair M A t1 t2)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompSymEncrypt M A k t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompPubKeyEncrypt M A k t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (CompSig M A t)
-    then show ?thesis
-      using Context \<eta>_1_ineq_id_aux[of c \<sigma> cs _ cs'1 cs'2] by simp
-  next
-    case (Proj M1 u v M2 A t)
-    then show ?thesis
-      using lemma_10[of c \<sigma> "[]" cs'] Context subseteq_card \<eta>_1_ineq_id_aux
-      unfolding \<eta>_1_def by auto
-  next
-    case (Sdec M1 k u M2 A t)
-    then show ?thesis sorry
-  next
-    case (Adec M1 u M2 A t)
-    then show ?thesis sorry
-  next
-    case (Ksub M1 x u M2 A t)
-    then show ?thesis sorry
-  qed
-qed *)
 
 lemma wf_cs:
   assumes "cs \<leadsto>[\<sigma>] cs'" 
-  shows "(cs, cs') \<in> measures [\<eta>_1, \<eta>_2]"
+  shows "(cs', cs) \<in> measures [\<eta>_1, \<eta>_2]"
   using assms
 proof(cases rule: rer.cases)
-  case (Context c cs cs'1 cs'2)
+  case (Context c cs'' cs'1 cs'2)
   from this(3,1,2) show ?thesis
   proof(cases rule: rer1.cases)
     case (Unif t u M A)
-    then have "c \<leadsto>\<^sub>1[\<sigma>] []"
-      using do_Unif[of t u M A \<sigma> c cs] by simp
-    then show ?thesis
-      using lemma_10[of c \<sigma> "[]" cs'] Context subseteq_card 
-      unfolding \<eta>_1_def
-      apply simp
+    then have rer1_Unif: "c \<leadsto>\<^sub>1[\<sigma>] []"
+      using do_Unif[of t u M A \<sigma> c cs''] by simp
+    have "cs_fv ([] @ cs_sapply \<sigma> cs') \<subseteq> cs_fv (c # cs')"
+      using rer1_Unif lemma_10[of c \<sigma> "[]" cs'] sorry
+    moreover have "cs_fv ([] @ cs_sapply \<sigma> cs') \<noteq> cs_fv (c # cs')"
+      sorry
+    moreover have "c \<leadsto>\<^sub>1[Variable] cs  \<Longrightarrow> \<eta>_2 cs < weight c"
+      sorry
+    ultimately show ?thesis
+      using subseteq_card
+      unfolding \<eta>_1_def \<eta>_2_def 
       sorry
   next
     case (CompHash M A t)
-    then show ?thesis 
-      apply simp
-      sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context CompHash wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (CompPair M A t1 t2)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context CompPair wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (CompSymEncrypt M A k t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context CompSymEncrypt wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (CompPubKeyEncrypt M A k t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context CompPubKeyEncrypt wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (CompSig M A t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context CompSig wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (Proj M1 u v M2 A t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context Proj wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (Sdec M1 k u M2 A t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context Sdec wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (Adec M1 u M2 A t)
-    then show ?thesis sorry
+    have "\<eta>_1 cs' \<le> \<eta>_1 cs"
+      using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
+    moreover have "\<eta>_2 cs' < \<eta>_2 cs" 
+      using Context Adec wf_cs_\<eta>2[of c cs'' cs cs'1 cs'2 cs'] by simp
+    ultimately show ?thesis by auto
   next
     case (Ksub M1 x u M2 A t)
     then show ?thesis sorry
