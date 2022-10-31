@@ -314,10 +314,8 @@ lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<
   next
     case unsi: (2 x t s)
     then show ?case proof-
-      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-      then show ?case proof(cases)
-        case 1
+      show ?case proof(cases "x \<notin> fv t")
+        case 1: True
         then show ?thesis proof-
           from 1 unsi(3) have opt:
             "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -342,7 +340,7 @@ lemma unify_soundness_i: "unify eqs = Some \<sigma> \<Longrightarrow> unifies \<
          ultimately show ?thesis by simp
         qed
       next
-        case 2
+        case 2: False
         then show ?thesis proof-
           from 2 unsi(3) have
             "t = Var x"
@@ -375,12 +373,10 @@ proof(induction eqs arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-      then show ?case proof(cases)
-        case 1
+    case unsi: (2 x t s)
+    then show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+        case 1: True
         then show ?thesis proof-
           from 1 unsi(3) have opt:
             "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -396,7 +392,7 @@ next
           from sigp_unify 1 unsi.IH(1) have IS:
             "\<forall>\<tau>. unifies \<tau> (Var(x := t) \<cdot>s s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>p)"
             by simp
-          have "\<forall>\<tau>. unifies \<tau> ((Var x, t) # s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)" proof(rule allI)
+          show ?thesis proof(rule allI)
             fix \<tau>
             show "unifies \<tau> ((Var x, t) # s) \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>s \<sigma>)"
             proof(rule impI)
@@ -425,10 +421,9 @@ next
               qed
             qed
           qed
-          then show ?thesis by simp
         qed
       next
-        case 2
+        case 2: False
         then show ?thesis proof-
           from 2 unsi(3) have
             "t = Var x"
@@ -439,7 +434,7 @@ next
           ultimately show ?thesis using unsi(2) 2 by(simp add: unifies_eq_def)
         qed
       qed
-  qed
+    qed
 next
   case (3 v va x s)
   then show ?case by (simp add: unifies_eq_def) 
@@ -585,12 +580,10 @@ proof(induction rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-      have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-      then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-      then show ?case proof(cases)
-        case 1
+    case unsi: (2 x t s)
+    then show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+        case 1: True
         then show ?thesis proof-
           from unsi(3) obtain \<sigma> where si:
             "unifies \<sigma> ((Var x, t) # s)"
@@ -614,7 +607,7 @@ next
             by (simp add: "1")
         qed
       next
-        case 2
+        case 2: False
         then show ?thesis proof-
           from unsi(3) obtain \<sigma> where si:
             "unifies \<sigma> ((Var x, t) # s)"
@@ -748,12 +741,10 @@ proof(induction arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
+    case unsi: (2 x t s)
+    then show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+      case 1: True
       then show ?thesis proof-
         from 1 unsi(3) have opt:
           "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -782,7 +773,7 @@ next
           by blast
       qed
     next
-      case 2
+      case 2: False
       then show ?thesis proof-
         from 2 unsi(3) have t:
           " t = Var x"
@@ -815,12 +806,10 @@ proof(induction eqs arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
+    case unsi: (2 x t s)
+    show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+      case 1: True
       then show ?thesis proof-
         from 1 unsi(3) have opt:
           "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -847,7 +836,7 @@ next
           by (meson Diff_subset dual_order.trans le_supI lemma1_eqs unify_svran_fv unsi.prems)
       qed
     next
-      case 2
+      case 2: False
       then show ?thesis proof-
         from 2 unsi(3) have t:
           " t = Var x"
@@ -904,12 +893,10 @@ proof(induction eqs arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
+    case unsi: (2 x t s)
+    show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+      case 1: True
       then show ?thesis proof-
         from 1 unsi(3) have opt:
           "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -938,7 +925,7 @@ next
           by auto
       qed
     next                           
-      case 2
+      case 2: False
       then show ?thesis proof-
         from 2 unsi(3) have t:
           " t = Var x"
@@ -971,12 +958,10 @@ proof(induction arbitrary: \<sigma> rule: unify.induct)
   case 1
   then show ?case by simp
 next
-  case unsi: (2 x t s)
-  then show ?case proof-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
+    case unsi: (2 x t s)
+    then show ?case proof-
+      show ?case proof(cases "x \<notin> fv t")
+      case 1: True
       then show ?thesis proof-
         from 1 unsi(3) have opt:
           "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
@@ -1054,7 +1039,7 @@ next
           by auto
         qed
     next
-      case 2
+      case 2: False
       then show ?thesis proof-
         from 2 unsi(3) have t:
           " t = Var x"
@@ -1142,15 +1127,11 @@ proof(induction arbitrary: \<sigma> rule: unify.induct)
   then show ?case by(simp add: wf_subst_def)
 next
   case unsi: (2 x t s)
-  then show ?case proof-
     from unsi(4)have s_wf:
       "wf_eqs arity s"
       by (simp add: wf_eqs_def)
-
-    have "x \<notin> fv t \<or> ~ x \<notin> fv t" by simp
-    then consider "x \<notin> fv t" | "~ x \<notin> fv t" by blast
-    then show ?case proof(cases)
-      case 1
+    show ?case proof(cases "x \<notin> fv t")
+      case 1: True
       then show ?thesis proof-
           from unsi(4) have t_wf:
             "wf_term arity t"
@@ -1176,7 +1157,7 @@ next
             by(simp add: t_wf wf_single_subst  wf_subst_scomp)
         qed
     next
-      case 2
+      case 2: False
       then show ?thesis proof-
         from 2 unsi(3) have
           "t = Var x"
@@ -1187,7 +1168,6 @@ next
         ultimately show ?thesis using unsi(2) 2 s_wf by simp
       qed
     qed
-  qed
 next
   case (3 v va x s)
   then show ?case by(simp add: wf_eqs_def wf_subst_def)
