@@ -45,16 +45,21 @@ definition solve_Ksub :: "constraint \<Rightarrow> (constraint_system \<times> m
                                                                              [([c_sapply (Variable(x := \<iota>)) ((PubKeyEncrypt (Variable x) u # M) | A \<rhd> (c_t c))], Variable(x := \<iota>))]
                                    | _ \<Rightarrow> []) (c_M c))"
 
-definition solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
-  "solve_rer cs = (let single_res = List.maps (\<lambda>c. let unif = solve_Unif c in
-                                                   let comp = solve_Comp c in
-                                                   let proj = solve_Proj c in
-                                                   let sdec = solve_Sdec c in
-                                                   let adec = solve_Adec c in
-                                                   let ksub = solve_Ksub c in
-                                                   (unif @ comp @ proj @ sdec @ adec @ ksub)) cs in
-                   let \<sigma>s = map (\<lambda>(_, \<sigma>). \<sigma>) single_res in
-                   foldr (\<lambda>\<sigma> acc. map (\<lambda>(cs, \<sigma>'). (cs_sapply \<sigma> cs, \<sigma>')) acc) \<sigma>s single_res)"
+function solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
+  "solve_rer [] = []"
+| "solve_rer (c # cs') = (let unif = solve_Unif c in
+                          let comp = solve_Comp c in
+                          let proj = solve_Proj c in
+                          let sdec = solve_Sdec c in
+                          let adec = solve_Adec c in
+                          let ksub = solve_Ksub c in
+                          let cs = (unif @ comp @ proj @ sdec @ adec @ ksub) in
+                          let \<sigma>s = map (\<lambda>(_, \<sigma>). \<sigma>) cs in
+                          let \<sigma>_cs' = concat (map (\<lambda>\<sigma>. cs_sapply \<sigma> cs') \<sigma>s) in
+                          cs @ (solve_rer \<sigma>_cs'))"
+  by pat_completeness auto
+termination 
+  sorry
 
 subsection \<open>(b)\<close>
 
@@ -87,8 +92,24 @@ value "solve_Proj ([Pair (Variable ''A0'') (Variable ''B0'')] | [] \<rhd> Consta
 value "solve_Sdec ([SymEncrypt (Variable ''K'') (Constant ''u'')] | [] \<rhd> Constant ''t'')"
 value "solve_Adec ([PubKeyEncrypt \<iota> (Constant ''u'')] | [] \<rhd> Constant ''t'')"
 value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''X''])) (solve_Ksub ([PubKeyEncrypt (Variable ''X'') (Constant ''u'')] | [] \<rhd> Constant ''t''))"
-value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'']))
-       (solve_rer [[PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1''))))])"
+
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'']))
+       (search [[Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0''))])"
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'']))
+       (search [[PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1''))))])"
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'']))
+       (search [[SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0''))])"
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''K1'']))
+       (search [[SymEncrypt (Variable ''K1'') (Constant ''m1'')] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))])"
+
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''K1'']))
+       (solve_Comp ([SymEncrypt (Variable ''K1'') (Constant ''m1'')] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))))"
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''K1'']))
+       (solve_Sdec ([SymEncrypt (Variable ''K1'') (Constant ''m1'')]|[] \<rhd> Variable ''K1''))"
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''K1'']))
+       (solve_Sdec ([SymEncrypt (Variable ''K1'') (Constant ''m1'')]|[] \<rhd> Constant ''m1''))"
+value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'', ''Z0''])) 
+       (search [[SymEncrypt (Variable ''K1'') (Constant ''m1'')] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))])"
 
 value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'', ''Z0''])) 
        (search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
@@ -96,12 +117,12 @@ value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v
                  [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (SymEncrypt (Constant ''k0'') (Variable ''Z0'')),
                  [SymEncrypt (Variable ''K1'') (Constant ''m1''), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''K1'') (Constant ''m1''))])"
 
-value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''NA1'', ''NB0'']))
+(* value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''NA1'', ''NB0'']))
        (search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
                  [PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''NA1'') (Constant ''a''))),
                  [PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Variable ''A0'') (Pair (Constant ''na0'') (Variable ''NB0''))),
                  [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Constant ''nb1'')),
-                 [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))])"
+                 [PubKeyEncrypt (Variable ''B0'') (Variable ''NB0''), PubKeyEncrypt (Constant ''a'') (Pair (Variable ''NA1'') (Constant ''nb1'')), PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''na0'') (Variable ''A0'')),  Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''NA1'') (Constant ''nb1''))])" *)
 
 section \<open>Assignment 9\<close>
 
