@@ -778,16 +778,21 @@ proof(cases rule: rer.cases)
     case (Unif t u M A)
     then have rer1_Unif: "c \<leadsto>\<^sub>1[\<sigma>] []"
       using do_Unif[of t u M A \<sigma> c cs''] by simp
-    have "cs_fv ([] @ cs_sapply \<sigma> cs') \<subseteq> cs_fv (c # cs')"
-      using rer1_Unif lemma_10[of c \<sigma> "[]" cs'] sorry
-    moreover have "cs_fv ([] @ cs_sapply \<sigma> cs') \<noteq> cs_fv (c # cs')"
-      sorry
-    moreover have "c \<leadsto>\<^sub>1[Variable] cs  \<Longrightarrow> \<eta>_2 cs < weight c"
-      sorry
-    ultimately show ?thesis
-      using subseteq_card
+    have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
+      using rer1_Unif Unif(2) lemma_10[of c \<sigma> "[]" "(cs'1 @ cs'2)"] by simp
+    moreover have perm_eq: "... = cs_fv (cs'1 @ c # cs'2)"
+      using cs_fv_perm by simp
+    ultimately have cs_fv_subseteq: "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
+      by simp
+    have "\<sigma> \<noteq> Variable" using msg_\<sigma>_not_id[OF Unif(5)] by simp
+    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (c # cs'1 @ cs'2)"
+      using rer1_Unif Unif(2) lemma_11[of c \<sigma> "[]" "(cs'1 @ cs'2)"] by simp
+    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (cs'1 @ c # cs'2)"
+      using perm_eq by simp
+    then show ?thesis
+      using Context(1,2) cs_fv_subseteq
       unfolding \<eta>_1_def \<eta>_2_def 
-      sorry
+      by (simp add: subseteq_card2)
   next
     case (CompHash M A t)
     have "\<eta>_1 cs' \<le> \<eta>_1 cs"
@@ -846,7 +851,22 @@ proof(cases rule: rer.cases)
     ultimately show ?thesis by auto
   next
     case (Ksub M1 x u M2 A t)
-    then show ?thesis sorry
+    have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
+      using Context(3) lemma_10[of c \<sigma> "cs''" "(cs'1 @ cs'2)"] by simp
+    moreover have perm_eq: "... = cs_fv (cs'1 @ c # cs'2)"
+      using cs_fv_perm by simp
+    ultimately have cs_fv_subseteq: "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
+      by simp
+    have "\<sigma> \<noteq> Variable" using Ksub(2)
+      by (simp add: fun_upd_idem_iff)
+    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (c # cs'1 @ cs'2)"
+      using Context(3) lemma_11[of c \<sigma> "cs''" "(cs'1 @ cs'2)"] by simp
+    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (cs'1 @ c # cs'2)"
+      using perm_eq by simp
+    then show ?thesis
+      using Context(1,2) cs_fv_subseteq
+      unfolding \<eta>_1_def \<eta>_2_def 
+      by (simp add: subseteq_card2)
   qed
 qed
   

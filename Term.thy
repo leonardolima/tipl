@@ -191,6 +191,11 @@ definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
 definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
   "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (map_prod embed embed) eqs)"
 
+lemma msg_\<sigma>_not_id: 
+  assumes "Some \<sigma> = msg_unify [(t, u)]"
+  shows "\<sigma> \<noteq> Variable"
+  sorry
+
 lemma msg_is_mgu_ii: 
   assumes \<sigma>_unifies: "msg_unifies \<sigma> eqs" 
   shows "(\<forall> \<tau> . (unifies \<tau> (map (map_prod embed embed) eqs) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s (embed \<circ> \<sigma>)))) = (\<forall> \<tau>s . (msg_unifies \<tau>s eqs \<longrightarrow> (\<exists>\<rho>. \<tau>s = \<rho> \<circ>m \<sigma>)))"
