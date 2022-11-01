@@ -30,7 +30,7 @@ definition solve_Proj :: "constraint \<Rightarrow> (constraint_system \<times> m
 definition solve_Sdec :: "constraint \<Rightarrow> (constraint_system \<times> msg_subst) list" where
   "solve_Sdec c = concat (map (\<lambda>m. case m of SymEncrypt k u \<Rightarrow> let A = c_A c in
                                                                let M = filter (\<lambda>m'. m \<noteq> m') (c_M c) in
-                                                               [([(u # M) | (SymEncrypt k u # A) \<rhd> (c_t c), (c_M c) | (SymEncrypt k u # A) \<rhd> k], Variable)]
+                                                               [([(u # M) | (SymEncrypt k u # A) \<rhd> (c_t c), M | (SymEncrypt k u # A) \<rhd> k], Variable)]
                                    | _ \<Rightarrow> []) (c_M c))"
 
 definition solve_Adec :: "constraint \<Rightarrow> (constraint_system \<times> msg_subst) list" where
@@ -42,7 +42,7 @@ definition solve_Adec :: "constraint \<Rightarrow> (constraint_system \<times> m
 definition solve_Ksub :: "constraint \<Rightarrow> (constraint_system \<times> msg_subst) list" where
   "solve_Ksub c = concat (map (\<lambda>m. case m of PubKeyEncrypt (Variable x) u \<Rightarrow> let A = c_A c in
                                                                              let M = filter (\<lambda>m'. m \<noteq> m') (c_M c) in
-                                                                             [([c_sapply (Variable(x := \<iota>)) ((PubKeyEncrypt (Variable x) u # M) | A \<rhd> (c_t c))], Variable)]
+                                                                             [([c_sapply (Variable(x := \<iota>)) ((PubKeyEncrypt (Variable x) u # M) | A \<rhd> (c_t c))], Variable(x := \<iota>))]
                                    | _ \<Rightarrow> []) (c_M c))"
 
 definition solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
@@ -75,10 +75,20 @@ function search :: "constraint_system \<Rightarrow> (constraint_system \<times> 
                                             Some(cs'', \<tau> \<circ>m \<sigma>))) rer_res))"
   by pat_completeness auto
 termination
-  (* Here we use the well-foundedness result of the rer relation*)
-  sorry
+  apply (relation "measures [\<eta>_1, \<eta>_2]")
+  subgoal by simp
+  subgoal sorry
+  done
 
 subsection \<open>(c)\<close>
+
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0''])) (solve_Unif ([Variable ''A0''] | [] \<rhd> Constant ''a''))"
+value "solve_Proj ([Pair (Variable ''A0'') (Variable ''B0'')] | [] \<rhd> Constant ''t'')"
+value "solve_Sdec ([SymEncrypt (Variable ''K'') (Constant ''u'')] | [] \<rhd> Constant ''t'')"
+value "solve_Adec ([PubKeyEncrypt \<iota> (Constant ''u'')] | [] \<rhd> Constant ''t'')"
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''X''])) (solve_Ksub ([PubKeyEncrypt (Variable ''X'') (Constant ''u'')] | [] \<rhd> Constant ''t''))"
+value "map (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'']))
+       (solve_rer [[PubKeyEncrypt (Variable ''B0'') (Pair (Constant ''k0'') (Sig (Variable ''A0'') (Constant ''k0''))), Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (PubKeyEncrypt (Constant ''b'') (Pair (Variable ''K1'') (Sig (Constant ''a'') (Variable ''K1''))))])"
 
 value "map_option (\<lambda>(cs, \<sigma>). (cs, map (\<lambda>v. (v, \<sigma> v)) [''A0'', ''B0'', ''K1'', ''Z0''])) 
        (search [ [Constant ''a'', Constant ''b'', \<iota>] | [] \<rhd> (Pair (Variable ''A0'') (Variable ''B0'')), 
@@ -112,9 +122,6 @@ lemma solve_Unif_sound:
   assumes "c = (M | A \<rhd> t)"
     and "solve_Unif (c) = [([], \<sigma>)]"
   shows "c \<leadsto>\<^sub>1[\<sigma>] []"
-  using assms 
-  unfolding solve_Unif_def
-  apply (simp only: Let_def)
   sorry
 
 lemma solve_Comp_Hash_sound: 
