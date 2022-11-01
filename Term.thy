@@ -188,13 +188,16 @@ lemma msg_unifies_alt: "msg_unifies \<sigma> eqs = (\<forall>eq \<in> set eqs. m
 definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
   "msg_unify eqs = map_option ((\<circ>) msg_of_term) (unify (map (map_prod embed embed) eqs))"
 
-definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
-  "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (map_prod embed embed) eqs)"
-
 lemma msg_\<sigma>_not_id: 
-  assumes "Some \<sigma> = msg_unify [(t, u)]"
+  assumes t_not_var: "\<not>(is_Variable t)" and unify: "Some \<sigma> = msg_unify [(t, u)]"
   shows "\<sigma> \<noteq> Variable"
+  using unify apply(simp add: msg_unify_def)
   sorry
+
+(*It is not possible to lift is_mgu due to issues with well-formedness of \<rho> in the quantifiers*)
+(*
+definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
+  "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))" 
 
 lemma msg_is_mgu_ii: 
   assumes \<sigma>_unifies: "msg_unifies \<sigma> eqs" 
@@ -213,10 +216,11 @@ proof(rule iffI)
       moreover from this asm have
         "\<exists> \<rho> . (embed \<circ> \<tau>s) = \<rho> \<circ>s (embed \<circ> \<sigma>)"
         by simp
-      ultimately obtain s where
-        "(embed \<circ> \<tau>s) = (embed \<circ> s) \<circ>s (embed \<circ> \<sigma>)"
-        using \<sigma>_unifies asm \<tau>s_unifies sorry
-      show "(\<exists>\<rho>. \<tau>s = \<rho> \<circ>m \<sigma>)" sorry
+      ultimately obtain \<rho> where
+        "(embed \<circ> \<tau>s) = \<rho> \<circ>s (embed \<circ> \<sigma>)" (*and "wf_subst arity \<rho>"*)
+        using \<sigma>_unifies asm \<tau>s_unifies by blast sorry
+    show "(\<exists>\<rho>. \<tau>s = \<rho> \<circ>m \<sigma>)"
+      sorry
     qed
   qed
 next
@@ -236,43 +240,77 @@ next
   qed
 qed
 
-lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))"
-  apply(simp add: msg_is_mgu_def is_mgu_def msg_unifies_def)
+lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (map_prod embed embed) eqs)"
+  apply(simp add: msg_is_mgu_def msg_unifies_alt is_mgu_def unifies_forall)
   using msg_is_mgu_ii msg_unifies_def by blast
+*)
+  
+subsection \<open>(e)\<close>
 
-lemma temp: "(\<exists>\<rho>. \<tau> = \<rho> \<circ>s (Term.embed \<circ> \<sigma>)) = (\<exists>\<rho>. \<tau>s = \<rho> \<circ>m \<sigma>)"
-  sorry
-
-lemma msg_is_mgu_alt: "msg_is_mgu \<sigma> eqs = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))"
-proof-
-  have 
-    "msg_is_mgu \<sigma> eqs = is_mgu (embed \<circ> \<sigma>) (map (map_prod embed embed) eqs)"
-    by(simp only: msg_is_mgu_def)
-  moreover have "... = ((unifies (embed \<circ> \<sigma>) (map (map_prod embed embed) eqs)) \<and> 
-    (\<forall> \<tau>. (unifies \<tau> (map (map_prod embed embed) eqs)) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s (embed \<circ> \<sigma>))))"
-    by (simp only: is_mgu_def)
-  moreover have 
-    "... = (msg_unifies \<sigma> eqs \<and> (\<forall> \<tau>. (unifies \<tau> (map (map_prod embed embed) eqs)) \<longrightarrow> (\<exists> \<rho> . \<tau> = \<rho> \<circ>s (embed \<circ> \<sigma>))))"
-    by(simp only: msg_unifies_def)
-  moreover have
-    "... = (msg_unifies \<sigma> eqs \<and> (\<forall>\<tau>. (msg_unifies \<tau> eqs \<longrightarrow> (\<exists>\<rho>. \<tau> = \<rho> \<circ>m \<sigma>))))"
-    
-  ultimately show ?thesis 
-qed  
-
-
-lemma mu_wf: 
+lemma embed_eqs_wf: 
     "wf_eqs arity (map (map_prod embed embed) eqs)"
     by(simp add: wf_eqs_def wf_eq_terms_wf)
 
 lemma unify_z_wf: "unify (map (map_prod embed embed) eqs) = Some z \<Longrightarrow> z = embed \<circ> (msg_of_term \<circ> z)"
 proof-
   assume "unify (map (map_prod embed embed) eqs) = Some z"
-  from this mu_wf have
+  from this embed_eqs_wf have
     "wf_subst arity z"
     by (simp only: wf_subst_unify)
   then show ?thesis by(simp add: fun_eq_iff wf_subst_def)
 qed
+
+lemma msg_unify_unifies:
+  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_unifies \<sigma> eqs"
+proof-
+  assume "msg_unify eqs = Some \<sigma>"
+  then obtain z where unify:
+    "unify (map (map_prod embed embed) eqs) = Some z" and z_def:
+        "msg_of_term \<circ> z = \<sigma>"
+    using msg_unify_def by auto
+  hence
+    "z = embed \<circ> (msg_of_term \<circ> z)"
+    using unify_z_wf by blast
+  moreover from unify have
+    "unifies z (map (map_prod embed embed) eqs)"
+    by (simp only: unify_soundness_i)
+  ultimately show ?thesis using z_def
+    by (simp add: msg_unifies_def)
+qed
+
+(*This is not possible due to the issues with lifting is_mgu*)
+(*
+lemma msg_unify_mgu: 
+  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_unifies \<tau> eqs \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
+proof-
+  assume "msg_unify eqs = Some \<sigma>"
+  then obtain z where z_unify:
+    "unify (map (map_prod embed embed) eqs) = Some z" and sig_def:
+        "msg_of_term \<circ> z = \<sigma>"
+    using msg_unify_def by auto
+  hence z_def:
+    "z = embed \<circ> (msg_of_term \<circ> z)"
+    using unify_z_wf by blast
+  assume asm: "msg_unifies \<tau> eqs"
+  hence tau_unifies:
+    "unifies (embed \<circ> \<tau>) (map (map_prod embed embed) eqs)"
+    by (simp add: msg_unifies_def)
+  from this z_def sig_def obtain s where
+    "(embed \<circ> \<tau>) = (embed \<circ> s) \<circ>s (embed \<circ> \<sigma>)"
+    using asm z_unify by (metis embed_msg_of_term_comp map_eq_map_tailrec msg_is_mgu_alt msg_is_mgu_def msg_scomp_def unify_soundness)
+  hence
+    "msg_of_term \<circ> (embed \<circ> \<tau>) = msg_of_term \<circ> ((embed \<circ> s) \<circ>s (embed \<circ> \<sigma>))"
+    by simp
+  from this show ?thesis using msg_scomp_def
+    by (metis embed_msg_of_term_comp msg_var_scomp)
+  qed
+
+lemma msg_unify_soundness:
+  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_is_mgu \<sigma> eqs"
+  using is_mgu_def msg_is_mgu_alt msg_is_mgu_def msg_unify_mgu msg_unify_unifies by blast
+*)
+
+subsection \<open>(f)\<close>
 
 lemma msg_fv_eqs_bind: "fv_eqs (map (map_prod embed embed) eqs) = msg_fv_eqs eqs"
 proof-
@@ -336,56 +374,5 @@ proof-
   ultimately show ?thesis
     by (metis msg_sdom_def msg_svran_def unify unify_z_wf z_def)
 qed
-  
-subsection \<open>(e)\<close>
-
-lemma msg_unify_unifies:
-  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_unifies \<sigma> eqs"
-proof-
-  assume "msg_unify eqs = Some \<sigma>"
-  then obtain z where unify:
-    "unify (map (map_prod embed embed) eqs) = Some z" and z_def:
-        "msg_of_term \<circ> z = \<sigma>"
-    using msg_unify_def by auto
-  hence
-    "z = embed \<circ> (msg_of_term \<circ> z)"
-    using unify_z_wf by blast
-  moreover from unify have
-    "unifies z (map (map_prod embed embed) eqs)"
-    by (simp only: unify_soundness_i)
-  ultimately show ?thesis using z_def
-    by (simp add: msg_unifies_def)
-qed
-  
-subsection \<open>(f)\<close>
-
-lemma msg_unify_mgu: 
-  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_unifies \<tau> eqs \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
-proof-
-  assume "msg_unify eqs = Some \<sigma>"
-  then obtain z where z_unify:
-    "unify (map (map_prod embed embed) eqs) = Some z" and sig_def:
-        "msg_of_term \<circ> z = \<sigma>"
-    using msg_unify_def by auto
-  hence z_def:
-    "z = embed \<circ> (msg_of_term \<circ> z)"
-    using unify_z_wf by blast
-  assume asm: "msg_unifies \<tau> eqs"
-  hence tau_unifies:
-    "unifies (embed \<circ> \<tau>) (map (map_prod embed embed) eqs)"
-    by (simp add: msg_unifies_def)
-  from this z_def sig_def obtain s where
-    "(embed \<circ> \<tau>) = (embed \<circ> s) \<circ>s (embed \<circ> \<sigma>)"
-    using asm z_unify by (metis embed_msg_of_term_comp map_eq_map_tailrec msg_is_mgu_alt msg_is_mgu_def msg_scomp_def unify_soundness)
-  hence
-    "msg_of_term \<circ> (embed \<circ> \<tau>) = msg_of_term \<circ> ((embed \<circ> s) \<circ>s (embed \<circ> \<sigma>))"
-    by simp
-  from this show ?thesis using msg_scomp_def
-    by (metis embed_msg_of_term_comp msg_var_scomp)
-  qed
-
-lemma msg_unify_soundness:
-  "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_is_mgu \<sigma> eqs"
-  using is_mgu_def msg_is_mgu_alt msg_is_mgu_def msg_unify_mgu msg_unify_unifies by blast
 
 end
