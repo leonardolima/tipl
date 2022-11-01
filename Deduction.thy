@@ -85,6 +85,12 @@ definition c_sapply :: "msg_subst \<Rightarrow> constraint \<Rightarrow> constra
 definition cs_sapply :: "msg_subst \<Rightarrow> constraint_system \<Rightarrow> constraint_system" where
   "cs_sapply \<sigma> cs = map (c_sapply \<sigma>) cs"
 
+lemma c_fv_finite: "finite (c_fv c)"
+  using fv_finite unfolding c_fv_def msg_fv_def by auto
+
+lemma cs_fv_finite: "finite (cs_fv cs)"
+  using c_fv_finite unfolding cs_fv_def by simp
+
 lemma c_fv_sapply_sdom_svran: "c_fv (c_sapply \<sigma> c) \<subseteq> (c_fv c - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
   using msg_fv_sapply_sdom_svran[of \<sigma> _]
   unfolding c_fv_def cs_sapply_def c_sapply_def
@@ -720,17 +726,6 @@ lemma do_Unif:
     and "cs = []"
   shows "M | A \<rhd> t \<leadsto>\<^sub>1[\<sigma>] []"
   using rer1.Unif assms by simp
-  
-lemma subseteq_card: 
-  assumes "s' \<subseteq> s"
-  shows "card s' \<le> card s"
-  sorry
-
-lemma subseteq_card2: 
-  assumes "s' \<subseteq> s"
-    and "s' \<noteq> s"
-  shows "card s' < card s"
-  sorry
 
 lemma cs_fv_perm: "cs_fv (c # cs'1 @ cs'2) = cs_fv (cs'1 @ c # cs'2)"
   unfolding cs_fv_def by auto
@@ -748,7 +743,7 @@ proof -
   ultimately have "cs_fv (cs @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
     by simp
   then show ?thesis
-    using assms subseteq_card
+    using assms cs_fv_finite[of "(cs'1 @ c # cs'2)"] card_mono
     unfolding \<eta>_1_def by simp
 qed
 
@@ -763,8 +758,8 @@ proof -
   moreover have "\<eta>_2 cs < weight c"
     using assms lemma_12[of c cs] by simp
   ultimately show ?thesis
-    using assms(2) subseteq_card
-    unfolding \<eta>_2_def by auto
+    using assms(2) cs_fv_finite[of "(cs'1 @ c # cs'2)"] card_mono
+    unfolding \<eta>_2_def by simp
 qed
 
 lemma wf_cs:
@@ -784,15 +779,11 @@ proof(cases rule: rer.cases)
       using cs_fv_perm by simp
     ultimately have cs_fv_subseteq: "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
       by simp
-    have "\<sigma> \<noteq> Variable" using msg_\<sigma>_not_id[OF Unif(5)] by simp
-    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (c # cs'1 @ cs'2)"
-      using rer1_Unif Unif(2) lemma_11[of c \<sigma> "[]" "(cs'1 @ cs'2)"] by simp
-    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<noteq> cs_fv (cs'1 @ c # cs'2)"
-      using perm_eq by simp
     then show ?thesis
-      using Context(1,2) cs_fv_subseteq
+      using Context(1,2) cs_fv_finite[of "(cs'1 @ c # cs'2)"] 
       unfolding \<eta>_1_def \<eta>_2_def 
-      by (simp add: subseteq_card2)
+      apply (simp add: psubset_card_mono card_mono)
+      sorry
   next
     case (CompHash M A t)
     have "\<eta>_1 cs' \<le> \<eta>_1 cs"
@@ -866,11 +857,11 @@ proof(cases rule: rer.cases)
     then show ?thesis
       using Context(1,2) cs_fv_subseteq
       unfolding \<eta>_1_def \<eta>_2_def 
-      by (simp add: subseteq_card2)
+      by (simp add: cs_fv_finite[of "(cs'1 @ c # cs'2)"] psubset_card_mono)
   qed
 qed
   
-theorem wf_red: "wf ({(cs, cs'). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'})"
-  sorry
+theorem wf_red: "wf ({(cs', cs). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'})"
+  using wf_subset[of "measures [\<eta>_1, \<eta>_2]" "{(cs', cs). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'}"] wf_cs by force
 
 end
