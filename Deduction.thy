@@ -173,9 +173,8 @@ lemma one_step_red_soundness:
 proof(cases rule: rer1.cases)
   case (Unif t u M A)
   then have "\<sigma> \<cdot>m t = \<sigma> \<cdot>m u"
-    using msg_unify_soundness[of "[(t,u)]" \<sigma>] 
-    unfolding msg_is_mgu_alt msg_unifies_eq_alt msg_unifies_alt
-    by force
+    using msg_unify_unifies[of "[(t,u)]" \<sigma>] unifies_forall
+    unfolding msg_unifies_def by (simp add: msg_sapply_def unifies_eq_def)
   then have "set (map ((\<cdot>m) \<tau>) (map ((\<cdot>m) \<sigma>) (M @ A))) \<turnstile> (\<tau> \<cdot>m (\<sigma> \<cdot>m t))"
     using Unif Ax by auto
   then show ?thesis 
@@ -780,7 +779,8 @@ proof(cases rule: rer.cases)
     ultimately have cs_fv_subseteq: "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
       by simp
     then show ?thesis
-      using Context(1,2) cs_fv_finite[of "(cs'1 @ c # cs'2)"] 
+      thm Context Unif
+      using Context(1,2) cs_fv_finite[of "(cs'1 @ c # cs'2)"]
       unfolding \<eta>_1_def \<eta>_2_def 
       apply (simp add: psubset_card_mono card_mono)
       sorry
