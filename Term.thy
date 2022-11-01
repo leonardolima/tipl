@@ -188,12 +188,6 @@ lemma msg_unifies_alt: "msg_unifies \<sigma> eqs = (\<forall>eq \<in> set eqs. m
 definition msg_unify :: "msg_equations \<Rightarrow> msg_subst option" where
   "msg_unify eqs = map_option ((\<circ>) msg_of_term) (unify (map (map_prod embed embed) eqs))"
 
-lemma msg_\<sigma>_not_id: 
-  assumes t_not_var: "\<not>(is_Variable t)" and unify: "Some \<sigma> = msg_unify [(t, u)]"
-  shows "\<sigma> \<noteq> Variable"
-  using unify apply(simp add: msg_unify_def)
-  sorry
-
 (*It is not possible to lift is_mgu due to issues with well-formedness of \<rho> in the quantifiers*)
 (*
 definition msg_is_mgu :: "msg_subst \<Rightarrow> msg_equations \<Rightarrow> bool" where
@@ -278,11 +272,46 @@ proof-
     by (simp add: msg_unifies_def)
 qed
 
-(*This is not possible due to the issues with lifting is_mgu*)
+(* This should still be possible even with the issues with lifting is_mgu, but is not needed *)
 (*
 lemma msg_unify_mgu: 
   "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_unifies \<tau> eqs \<Longrightarrow> \<exists> s. \<tau> = s \<circ>m \<sigma>"
-proof-
+apply(simp only: msg_unify_def)
+proof(induction arbitrary: \<sigma> rule: unify.induct)
+  case 1
+  then show ?case by simp 
+next
+  case (2 x t s)
+  then show ?case proof(cases "x \<notin> fv t")
+    case True
+    then show ?thesis proof-
+      from True 2(3) have opt:
+        "scomp_opt (unify (Var(x := t) \<cdot>s s)) (Var(x := t)) = Some \<sigma>"
+            by simp
+          then obtain \<sigma>p where sigp_unify:
+            "unify (Var(x := t) \<cdot>s s) = Some \<sigma>p"
+            by fastforce
+          from this opt have sig:
+            "\<sigma> = \<sigma>p \<circ>s Var(x := t)" by simp
+          moreover from sigp_unify True 2(1) have 
+            "unifies \<sigma>p (Var(x := t) \<cdot>s s)" 
+            by simp
+    qed
+  next
+    case False
+    then show ?thesis using 2
+      by (metis Unification.UnSi option.distinct(1) option.map_disc_iff)
+  qed
+next
+  case (3 v va x s)
+  then show ?case by simp
+next
+  case (4 f0 l0 f1 l1 s)
+  then show ?case
+    by (metis Unification.Fun option.distinct(1) option.map_disc_iff)
+qed
+*)
+(*
   assume "msg_unify eqs = Some \<sigma>"
   then obtain z where z_unify:
     "unify (map (map_prod embed embed) eqs) = Some z" and sig_def:
@@ -304,12 +333,12 @@ proof-
   from this show ?thesis using msg_scomp_def
     by (metis embed_msg_of_term_comp msg_var_scomp)
   qed
-
+*)
+(*
 lemma msg_unify_soundness:
   "msg_unify eqs = Some \<sigma> \<Longrightarrow> msg_is_mgu \<sigma> eqs"
-  using is_mgu_def msg_is_mgu_alt msg_is_mgu_def msg_unify_mgu msg_unify_unifies by blast
+  using is_mgu_def msg_is_mgu_def msg_unify_mgu msg_unify_unifies by blast
 *)
-
 subsection \<open>(f)\<close>
 
 lemma msg_fv_eqs_bind: "fv_eqs (map (map_prod embed embed) eqs) = msg_fv_eqs eqs"
