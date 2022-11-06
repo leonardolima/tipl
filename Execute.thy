@@ -176,6 +176,35 @@ lemma solve_Comp_Sig_sound:
   shows "c \<leadsto>\<^sub>1[\<sigma>] cs"
   using assms rer1.CompSig by simp
 
+lemma proj_aux:
+  assumes "m = Pair u v"
+  shows "(case m of Pair t1 t2 \<Rightarrow>
+            let Aa = c_A ((M1 @ Pair u v # M2)|A \<rhd> t);
+            M = filter ((\<noteq>) m) (c_M ((M1 @ Pair u v # M2)|A \<rhd> t))
+              in [([(t1 # t2 # M)|(Pair t1 t2 # Aa)
+            \<rhd> c_t ((M1 @ msg.Pair u v # M2)|A \<rhd> t)], Variable)]
+          | _ \<Rightarrow> []) = [([(M1 @ (u # v # M2)) | ((Pair u v) # A) \<rhd> t], Variable)]"
+  apply (simp split: msg.split)
+  apply (intro conjI)
+        apply (simp_all add: assms)
+  apply auto
+  sorry
+
+thm proj_aux
+
+lemma solve_Proj_sound: 
+  assumes "solve_Proj ((M1 @ m # M2) | A \<rhd> t) = rhs"
+    and "m = Pair u v"
+  shows "rhs = [(cs, Variable)] \<and> ((M1 @ (Pair u v) # M2) | A \<rhd> t) \<leadsto>\<^sub>1[Variable] cs"
+  using assms
+  apply (intro conjI)
+  subgoal
+    using assms proj_aux[OF assms(2)]
+    unfolding solve_Proj_def
+    apply (simp)
+    sorry
+  sorry
+
 subsection \<open>(b)\<close>
 
 lemma solve_Unif_comp: 
