@@ -166,7 +166,7 @@ definition is_simple_cs :: "constraint_system \<Rightarrow> bool" where
 definition red :: "constraint_system \<Rightarrow> msg_subst set" where
   "red cs = {\<tau> \<circ>m \<sigma> | \<tau> \<sigma>. (\<exists>cs'. cs \<leadsto>*[\<sigma>] cs' \<and> is_simple_cs cs' \<and> \<tau> \<in> sol(cs'))}"
 
-lemma one_step_red_soundness: 
+lemma rer1_red: 
   assumes "c \<leadsto>\<^sub>1[\<sigma>] cs" and "\<tau> \<in> sol(cs)"
   shows "(\<tau> \<circ>m \<sigma>) \<in> sol([c])"
   using assms
@@ -176,21 +176,22 @@ proof(cases rule: rer1.cases)
     using msg_unify_unifies[of "[(t,u)]" \<sigma>] unifies_forall
     unfolding msg_unifies_def by (simp add: msg_sapply_def unifies_eq_def)
   then have "set (map ((\<cdot>m) \<tau>) (map ((\<cdot>m) \<sigma>) (M @ A))) \<turnstile> (\<tau> \<cdot>m (\<sigma> \<cdot>m t))"
-    using Unif Ax by auto
+    using Unif(4) Ax[of "(\<tau> \<cdot>m \<sigma> \<cdot>m t)"] by auto
+  then have "set (map ((\<cdot>m) (\<tau> \<circ>m \<sigma>)) (M @ A)) \<turnstile> ((\<tau> \<circ>m \<sigma>) \<cdot>m t)"
+    by (simp add: msg_scomp_distrib)
   then show ?thesis 
-    using Unif msg_scomp_distrib 
-    unfolding sol_def by simp
+    using Unif(1) unfolding sol_def by simp
 next
   case (CompHash M A t)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t)"
-    using assms CompHash
+    using assms(2) CompHash(3)
     unfolding sol_def
     by (simp add: Un_assoc image_Un)
   then have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m (Hash t))" 
     using deduce.CompHash[of "set (map ((\<cdot>m) \<tau>) (M @ A))" "\<tau> \<cdot>m t"]
     by (simp add: msg_sapply_def)
   then show ?thesis
-    using CompHash unfolding sol_def by simp
+    using CompHash(1,2) unfolding sol_def by simp
 next
   case (CompPair M A t1 t2)
   have "set (map ((\<cdot>m) \<tau>) (M @ A)) \<turnstile> (\<tau> \<cdot>m t1)"
@@ -329,27 +330,25 @@ next
     by (simp add: cs_sapply_def sol_scomp)
 qed
 
-lemma msg_scomp_sol: 
+lemma rer_red: 
   assumes "cs \<leadsto>[\<sigma>] cs'" and "\<tau> \<in> sol(cs')"
   shows "(\<tau> \<circ>m \<sigma>) \<in> sol(cs)"
   using assms
 proof(cases rule: rer.cases)
   case (Context c cs cs'1 cs'2)
-  have tau_cs: "\<tau> \<in> sol(cs)"
-    using assms Context unfolding sol_def by simp
-  have tau_cs2: "\<tau> \<in> sol(cs_sapply \<sigma> (cs'1 @ cs'2))"
-    using assms Context unfolding sol_def by simp
-  have "(\<tau> \<circ>m \<sigma>) \<in> sol([c])"
-    using assms Context one_step_red_soundness[of c \<sigma> cs \<tau>]
-    unfolding sol_def by simp
-  moreover have "(\<tau> \<circ>m \<sigma>) \<in> sol(cs'1 @ cs'2)"
-    using sol_scomp[of \<tau> \<sigma> "(cs'1 @ cs'2)"] tau_cs2
+  have "\<tau> \<in> sol(cs_sapply \<sigma> (cs'1 @ cs'2))"
+    using assms(2) Context(2) unfolding sol_def by simp
+  then have "(\<tau> \<circ>m \<sigma>) \<in> sol(cs'1 @ cs'2)"
+    using sol_scomp[of \<tau> \<sigma> "(cs'1 @ cs'2)"] 
     unfolding sol_def by auto
+  moreover have "(\<tau> \<circ>m \<sigma>) \<in> sol([c])"
+    using assms Context rer1_red[of c \<sigma> cs \<tau>]
+    unfolding sol_def by simp
   ultimately show ?thesis
     using Context unfolding sol_def by simp
 qed
 
-lemma msg_scomp_simple_sol:
+lemma rer_star_red:
   assumes "cs \<leadsto>*[\<sigma>] cs'"
     and "is_simple_cs cs'"
     and "\<tau> \<in> sol(cs')"
@@ -361,12 +360,12 @@ proof(induction rule: rer_star.induct)
 next
   case (Trans cs \<sigma> cs'' \<tau> cs')
   then show ?case 
-    using msg_scomp_sol[of cs \<sigma> cs''] one_step_red_soundness msg_scomp_assoc
+    using rer_red[of cs \<sigma> cs''] msg_scomp_assoc
     by (simp; fastforce)
 qed
 
 theorem red_soundness: "red cs \<subseteq> sol(cs)"
-  using sol_def red_def msg_scomp_simple_sol by auto
+  using sol_def red_def rer_star_red by auto
 
 subsection \<open>(b)\<close>
 
@@ -394,25 +393,25 @@ definition \<chi>_list :: "msg list \<Rightarrow> nat" where
 definition weight :: "constraint \<Rightarrow> nat" where
   "weight c = \<chi>_list (c_M c) * \<theta> (c_t c)"
 
-lemma \<theta>_geq_1: "\<theta> m \<ge> 1"
+lemma \<theta>_positive: "\<theta> m \<ge> 1"
   by(induction m; simp)
 
-lemma \<chi>_geq_1: "\<chi> m \<ge> 1"
+lemma \<chi>_positive: "\<chi> m \<ge> 1"
   by(induction m; simp)
 
-lemma \<chi>_list_geq_1: "\<chi>_list l \<ge> 1"
+lemma \<chi>_list_positive: "\<chi>_list l \<ge> 1"
 proof(induction l)
   case Nil
   then show ?case 
-    using \<chi>_geq_1 unfolding \<chi>_list_def by simp
+    using \<chi>_positive unfolding \<chi>_list_def by simp
 next
   case (Cons a l)
   then show ?case
-    using \<chi>_geq_1 unfolding \<chi>_list_def by simp
+    using \<chi>_positive unfolding \<chi>_list_def by simp
 qed
 
 lemma \<chi>_list_pair_ineq: "\<chi>_list (M1 @ u # v # M2) < \<chi>_list (M1 @ Pair u v # M2)"
-  using \<chi>_list_geq_1
+  using \<chi>_list_positive
   unfolding \<chi>_list_def 
   by (auto simp add: Suc_le_lessD)
 
@@ -420,7 +419,7 @@ lemma weight_positive: "weight c \<ge> 1"
 proof(cases c)
   case (Constraint M A t)
   then show ?thesis 
-    using \<chi>_list_geq_1 \<theta>_geq_1
+    using \<chi>_list_positive \<theta>_positive
     unfolding weight_def by simp
 qed
 
@@ -438,7 +437,7 @@ proof(induction cs)
 next
   case (Cons a cs)
   then show ?case 
-    using msg_var_sapply
+    using msg_var_sapply 
     unfolding cs_sapply_def c_sapply_def msg_sapply_def
     by (cases a; simp)
 qed
@@ -467,12 +466,10 @@ proof(cases rule: rer1.cases)
   have "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
     using cs_fv_sapply_sdom_svran[of \<sigma> cs'] by simp
   moreover have "msg_svran \<sigma> \<subseteq> c_fv c"
-    using Unif msg_unify_svran_fv[of "[(t, u)]" \<sigma>]
+    using Unif(1,4,5) msg_unify_svran_fv[of "[(t, u)]" \<sigma>]
     by (auto simp add: c_fv_def msg_fv_eqs_def msg_fv_eq_def)
   ultimately show ?thesis
-    using Unif
-    unfolding cs_fv_def c_fv_def cs_sapply_def c_sapply_def
-    by (simp; smt (verit, best) Diff_subset Un_commute Un_mono subset_trans)
+    using Unif(2) c_cs'_fv[of c cs'] by auto
 next
   case (Ksub M1 x u M2 A t)
   have \<sigma>_sdom: "msg_sdom \<sigma> = {x}"
@@ -484,7 +481,7 @@ next
     unfolding msg_fv_def
     by (simp add: cs_fv_def; fastforce)
   ultimately have "cs_fv (cs @ cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs @ cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
-    using Ksub(2) Ksub(3) cs_fv_sapply_sdom_svran[of \<sigma> cs'] c_fv_sapply_sdom_svran
+    using Ksub(2,3) cs_fv_sapply_sdom_svran[of \<sigma> cs'] c_fv_sapply_sdom_svran
     unfolding msg_fv_def
     by (simp add: cs_cs'_fv cs_fv_def; fastforce)
   also have "... \<subseteq> cs_fv(c # cs')"
@@ -506,7 +503,7 @@ proof(cases rule: rer1.cases)
     unfolding msg_sdom_def sdom_def
     by (simp; blast)
   moreover have "msg_sdom(\<sigma>) \<subseteq> c_fv(c)"
-    using Unif msg_unify_sdom_fv[of "[(t, u)]" \<sigma>]
+    using Unif(1,4,5) msg_unify_sdom_fv[of "[(t, u)]" \<sigma>]
     unfolding c_fv_def msg_fv_eqs_def msg_fv_eq_def
     by auto
   ultimately have "x \<in> cs_fv(c # cs')"
@@ -514,10 +511,9 @@ proof(cases rule: rer1.cases)
   moreover have "cs_fv (cs_sapply \<sigma> cs') \<subseteq> (cs_fv(cs') - msg_sdom \<sigma>) \<union> msg_svran \<sigma>"
     using cs_fv_sapply_sdom_svran[of \<sigma> cs'] by simp
   moreover have "msg_sdom(\<sigma>) \<inter> msg_svran(\<sigma>) = {}"
-    using Unif msg_unify_sdom_svran[of "[(t, u)]" \<sigma>]
-    by simp
+    using Unif(5) msg_unify_sdom_svran[of "[(t, u)]" \<sigma>] by simp
   ultimately show ?thesis
-    using Unif by (metis (no_types, lifting) DiffD2 Diff_empty IntI Un_iff x_sdom self_append_conv2 subsetD)
+    using Unif(2) x_sdom by auto
 next
   case (Ksub M1 x u M2 A t)
   have c_cs: "cs_fv cs = c_fv (c_sapply \<sigma> c)"
@@ -555,7 +551,7 @@ next
     unfolding weight_def
     by simp
   also have "... < (\<chi>_list M * (\<theta> t + 1))"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (simp add: Suc_le_lessD)
   also have "... = (\<chi>_list M * (\<theta> (Hash t)))"
     by simp
@@ -573,7 +569,8 @@ next
     unfolding weight_def
     by simp
   also have "... < \<chi>_list M * (\<theta> t1 + \<theta> t2 + 1)"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    subsubsection \<open>HERE\<close>
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (simp add: discrete distrib_left)
   also have "... = \<chi>_list M * (\<theta> (Pair t1 t2))"
     by simp
@@ -591,7 +588,7 @@ next
     unfolding weight_def
     by simp
   also have "... < \<chi>_list M * (\<theta> k + \<theta> t + 1)"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (simp add: discrete distrib_left)
   also have "... = \<chi>_list M * (\<theta> (SymEncrypt k t))"
     by simp
@@ -610,7 +607,7 @@ next
     unfolding weight_def
     by simp
   also have "... < \<chi>_list M * (\<theta> k + \<theta> t + 1)"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (simp add: discrete distrib_left)
   also have "... = \<chi>_list M * (\<theta> (PubKeyEncrypt k t))"
     by simp
@@ -628,7 +625,7 @@ next
     unfolding weight_def
     by simp
   also have "... < \<chi>_list M * (\<theta> \<iota> + \<theta> t + 1)"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (simp add: discrete distrib_left)
   also have "... = \<chi>_list M * (\<theta> (Sig \<iota> t))"
     by simp
@@ -645,7 +642,7 @@ next
   have pair_ineq: "(\<chi> u) * (\<chi> v) < (\<chi> (Pair u v))"
     by auto
   then show ?thesis
-    using Proj Suc_le_eq \<theta>_geq_1 \<chi>_list_pair_ineq
+    using Proj Suc_le_eq \<theta>_positive \<chi>_list_pair_ineq
     unfolding \<eta>_2_def weight_def 
     by auto
 next
@@ -655,7 +652,7 @@ next
     unfolding weight_def \<chi>_list_def
     by auto
   also have "... < ((\<chi>_list (M1 @ M2) * (\<chi> u) * (\<theta> t)) + (\<chi>_list (M1 @ M2) * ((\<theta> k) + 1) * (\<theta> t)))"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive
     by (clarsimp; metis One_nat_def Suc_le_lessD add.commute add_lessD1 less_add_same_cancel2 n_less_n_mult_m nat_mult_1_right order_less_le)
   also have "... = (\<chi>_list (M1 @ M2) * (\<chi> u + \<theta> k + 1) * (\<theta> t))"
     by (simp add: add_mult_distrib add_mult_distrib2)
@@ -674,7 +671,7 @@ next
     unfolding weight_def \<chi>_list_def
     by auto
   also have "... < (\<chi>_list (M1 @ M2) * (\<chi> u + 1) * (\<theta> t))"
-    using \<theta>_geq_1 \<chi>_geq_1 \<chi>_list_geq_1 Suc_le_eq 
+    using \<theta>_positive \<chi>_positive \<chi>_list_positive Suc_le_eq 
     by auto
   also have "... = (\<chi>_list (M1 @ M2) * (\<chi> (PubKeyEncrypt \<iota> u)) * (\<theta> t))"
     by simp
@@ -686,20 +683,12 @@ next
   finally show ?thesis
     using Adec unfolding \<eta>_2_def by auto
 next
+  subsubsection \<open>HERE\<close>
   case (Ksub M1 x u M2 A t)
   have "Variable \<noteq> Variable(x := \<iota>)"
     by (metis fun_upd_def msg.distinct(1))
   then show ?thesis using Ksub by simp
 qed
-
-lemma do_Unif:
-  assumes "\<not>(is_Variable t)"
-    and "u \<in> (set M) \<union> (set A)"
-    and "Some(\<sigma>) = msg_unify [(t, u)]"
-    and "c = M | A \<rhd> t"
-    and "cs = []"
-  shows "M | A \<rhd> t \<leadsto>\<^sub>1[\<sigma>] []"
-  using rer1.Unif assms by simp
 
 lemma cs_fv_perm: "cs_fv (c # cs'1 @ cs'2) = cs_fv (cs'1 @ c # cs'2)"
   unfolding cs_fv_def by auto
@@ -745,19 +734,20 @@ proof(cases rule: rer.cases)
   from this(3,1,2) show ?thesis
   proof(cases rule: rer1.cases)
     case (Unif t u M A)
-    then have rer1_Unif: "c \<leadsto>\<^sub>1[\<sigma>] []"
-      using do_Unif[of t u M A \<sigma> c cs''] by simp
-    have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
-      using rer1_Unif Unif(2) c_cs_fv_subseteq[of c \<sigma> "[]" "(cs'1 @ cs'2)"] by simp
-    moreover have perm_eq: "... = cs_fv (cs'1 @ c # cs'2)"
+    have rer1_Unif: "c \<leadsto>\<^sub>1[\<sigma>] []"
+      using Unif rer1.intros(1) by simp
+    then have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (c # cs'1 @ cs'2)"
+      using Unif(2) c_cs_fv_subseteq[of c \<sigma> "[]" "(cs'1 @ cs'2)"] by simp
+    also have perm_eq: "... = cs_fv (cs'1 @ c # cs'2)"
       using cs_fv_perm by simp
-    ultimately have cs_fv_subseteq: "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
+    ultimately have "cs_fv (cs'' @ cs_sapply \<sigma> (cs'1 @ cs'2)) \<subseteq> cs_fv (cs'1 @ c # cs'2)"
       by simp
     then show ?thesis
-      using Context(1,2) cs_fv_finite[of "(cs'1 @ c # cs'2)"]
+      using Context(1-3) cs_fv_finite[of "(cs'1 @ c # cs'2)"]
       unfolding \<eta>_1_def \<eta>_2_def 
-      by (simp; metis \<eta>_2_def add.left_commute add_less_cancel_right c_cs_\<eta>2_w c_cs_fv_noteq cs_sapply_id Context(3) map_append perm_eq psubsetI psubset_card_mono sum_list_append)
+      by (simp; metis \<eta>_2_def add.left_commute add_less_cancel_right c_cs_\<eta>2_w c_cs_fv_noteq cs_sapply_id map_append perm_eq psubsetI psubset_card_mono sum_list_append)
   next
+    subsubsection \<open>HERE\<close>
     case (CompHash M A t)
     have "\<eta>_1 cs' \<le> \<eta>_1 cs"
       using Context wf_cs_\<eta>1[of c \<sigma> cs'' _ cs'1 cs'2] by simp
@@ -835,6 +825,6 @@ proof(cases rule: rer.cases)
 qed
   
 theorem wf_red: "wf ({(cs', cs). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'})"
-  using wf_subset[of "measures [\<eta>_1, \<eta>_2]" "{(cs', cs). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'}"] wf_cs by force
+  using wf_subset[of "measures [\<eta>_1, \<eta>_2]" "{(cs', cs). \<exists>\<sigma>. cs \<leadsto>[\<sigma>] cs'}"] wf_cs by fastforce
 
 end

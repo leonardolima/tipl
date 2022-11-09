@@ -45,7 +45,18 @@ definition solve_Ksub :: "constraint \<Rightarrow> (constraint_system \<times> m
                                                                              [([c_sapply (Variable(x := \<iota>)) ((PubKeyEncrypt (Variable x) u # M) | A \<rhd> (c_t c))], Variable(x := \<iota>))]
                                    | _ \<Rightarrow> []) (c_M c))"
 
-function solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
+definition solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
+  "solve_rer cs = (let single_res = List.maps (\<lambda>c. let unif = solve_Unif c in
+                                                   let comp = solve_Comp c in
+                                                   let proj = solve_Proj c in
+                                                   let sdec = solve_Sdec c in
+                                                   let adec = solve_Adec c in
+                                                   let ksub = solve_Ksub c in
+                                                   (unif @ comp @ proj @ sdec @ adec @ ksub)) cs in
+                   let \<sigma>s = map (\<lambda>(_, \<sigma>). \<sigma>) single_res in
+                   foldr (\<lambda>\<sigma> acc. map (\<lambda>(cs, \<sigma>'). (cs_sapply \<sigma> cs, \<sigma>')) acc) \<sigma>s single_res)"
+
+(* function solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<times> msg_subst) list" where
   "solve_rer [] = []"
 | "solve_rer (c # cs') = (let unif = solve_Unif c in
                           let comp = solve_Comp c in
@@ -59,7 +70,7 @@ function solve_rer :: "constraint_system \<Rightarrow> (constraint_system \<time
                           cs @ (solve_rer \<sigma>_cs'))"
   by pat_completeness auto
 termination 
-  sorry
+  sorry *)
 
 subsection \<open>(b)\<close>
 
@@ -135,14 +146,16 @@ lemma solve_Unif_sound:
     and "solve_Unif (c) = [([], \<sigma>)]"
   shows "c \<leadsto>\<^sub>1[\<sigma>] []"
   sorry
-
 lemma solve_Comp_Hash_sound: 
-  assumes "c = (M | A \<rhd> (Hash t))"
-    and "\<sigma> = Variable"
-    and "cs = [(M | A \<rhd> t)]"
-    and "solve_Comp (c) = [(cs, \<sigma>)]"
-  shows "c \<leadsto>\<^sub>1[\<sigma>] cs"
-  using assms rer1.CompHash by simp
+  assumes "solve_Comp (c) = [(cs, Variable)]"
+    and "(c_t c) = (Hash t)"
+  shows "c \<leadsto>\<^sub>1[Variable] cs"
+  using assms rer1.CompHash
+proof - 
+  assume "c = (M | A \<rhd> Hash t)"
+  then have "cs = [(M | A \<rhd> t)]"
+    using assms rer1.CompHash by simp
+  oops
 
 lemma solve_Comp_Pair_sound: 
   assumes "c = (M | A \<rhd> (Pair t1 t2))"
